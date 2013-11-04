@@ -3,3 +3,4 @@
 from synchronized import synchronized
 from background import background, bg
 from error import Error, TimeoutError
+from pool import Pool
