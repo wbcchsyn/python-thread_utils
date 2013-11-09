@@ -7,6 +7,7 @@ import sys
 
 import _future
 import _gc
+import error
 
 
 class Pool(object):
@@ -43,6 +44,8 @@ class Pool(object):
         self.daemon = operator.truth(daemon)
 
         self.tasks = Queue.Queue()
+        self.lock = threading.Lock()
+        self.is_killed = False
 
         for i in xrange(worker_size):
             self.__create_worker()
@@ -79,10 +82,18 @@ class Pool(object):
                             "callable.")
 
         future = _future.Future()
-        self.tasks.put(self.Task(future, method, *args, **kwargs))
+        task = self.Task(future, method, *args, **kwargs)
+        with self.lock:
+            if self.is_killed:
+                raise error.DeadPoolError("Pool.send is called after killed.")
+            self.tasks.put(task)
+
         return future
 
     def kill(self):
+        with self.lock:
+            self.is_killed = True
+
         [self.tasks.put(None) for i in xrange(self.worker_size)]
 
     def __del__(self):

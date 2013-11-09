@@ -219,3 +219,18 @@ def test_receive_raises_TimeoutError_if_task_do_not_finish_before_timeout():
         p.send(foo, event).receive(timeout=TEST_INTERVAL)
 
     p.kill()
+
+
+def test_DeadPoolError_if_task_is_sent_to_killed_Pool():
+    """
+    DeadPoolError is raised if task is sent to a Pool object which is killed.
+    """
+
+    def foo():
+        pass
+
+    p = thread_utils.Pool()
+    p.kill()
+
+    with pytest.raises(thread_utils.DeadPoolError):
+        p.send(foo)

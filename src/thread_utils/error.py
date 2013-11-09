@@ -7,3 +7,7 @@ class Error(Exception):
 
 class TimeoutError(Error):
     pass
+
+
+class DeadPoolError(Error):
+    pass
