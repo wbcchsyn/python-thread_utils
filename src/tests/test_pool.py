@@ -235,3 +235,28 @@ def test_DeadPoolError_if_task_is_sent_to_killed_Pool():
 
     with pytest.raises(thread_utils.DeadPoolError):
         p.send(foo)
+
+
+def test_can_be_used_with_statement_and_killed_when_exited():
+    """
+    Pool class can be used in with statement.
+
+    Pool object is created when entered with statement and passed to variable
+    specified as statement. The Pool object will be killed when exite from
+    with statement.
+    """
+
+    # Wait for pre-tested threads are joined
+    time.sleep(TEST_INTERVAL)
+
+    initial_count = threading.active_count()
+
+    with pytest.raises(RuntimeError):
+        with thread_utils.Pool() as p:
+            assert isinstance(p, thread_utils.Pool)
+            raise RuntimeError()
+
+    # Wait for all threads are killed.
+    time.sleep(TEST_INTERVAL)
+
+    assert threading.active_count() == initial_count

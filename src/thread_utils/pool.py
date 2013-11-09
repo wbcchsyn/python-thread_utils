@@ -98,3 +98,9 @@ class Pool(object):
 
     def __del__(self):
         self.kill()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, error_type, value, traceback):
+        self.kill()
