@@ -3,7 +3,6 @@
 import sys
 sys.path.append('src')
 
-import pytest
 import threading
 import time
 
