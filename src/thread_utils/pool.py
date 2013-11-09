@@ -4,6 +4,7 @@ import Queue
 import threading
 import operator
 import sys
+
 import _future
 import _gc
 
@@ -11,7 +12,7 @@ import _gc
 class Pool(object):
 
     class Task(object):
-        __slots__ = ("future", "method", "args", "kwargs")
+        __slots__ = ("future", "method", "args", "kwargs",)
 
         def __init__(self, future, method, *args, **kwargs):
             self.future = future
@@ -28,7 +29,6 @@ class Pool(object):
         if worker_size < 1:
             raise ValueError("The argument 2 'worker_size' is requested 1 or "
                              "larger than 1.")
-        self.worker_size = worker_size
 
         if not isinstance(loop_count, int):
             raise TypeError("The argument 3 'loop_count' is requested "
@@ -36,8 +36,10 @@ class Pool(object):
         if loop_count < 1:
             raise ValueError("The argument 3 'loop_count' is requested to be 1"
                              " or larger than 1.")
-        self.loop_count = loop_count
 
+        # main
+        self.worker_size = worker_size
+        self.loop_count = loop_count
         self.daemon = operator.truth(daemon)
 
         self.tasks = Queue.Queue()
@@ -53,27 +55,22 @@ class Pool(object):
     def run(self):
         try:
             for i in xrange(self.loop_count):
-                self.__do_task()
+                task = self.tasks.get()
+                if task is None:
+                    return
 
-            self.__create_worker()
+                try:
+                    ret = task.method(*task.args, **task.kwargs)
+                    task.future._set_return(ret)
 
-        except StopIteration:
-            pass
+                except BaseException as e:
+                    task.future._set_error(e)
+
+            else:
+                self.__create_worker()
 
         finally:
             _gc.put(threading.current_thread())
-
-    def __do_task(self):
-        task = self.tasks.get()
-        if task is None:
-            raise StopIteration
-
-        try:
-            ret = task.method(*task.args, **task.kwargs)
-            task.future._set_return(ret)
-
-        except BaseException as e:
-            task.future._set_error(e)
 
     def send(self, method, *args, **kwargs):
         # Argument Check

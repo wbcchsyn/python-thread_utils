@@ -1,10 +1,11 @@
 #-*- coding: utf-8 -*-
 
 import threading
-import _future
 import functools
-import _gc
 import operator
+
+import _gc
+import _future
 
 
 def background(daemon=True):
