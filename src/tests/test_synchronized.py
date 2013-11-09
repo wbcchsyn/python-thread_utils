@@ -1,7 +1,8 @@
 #-*- coding: utf-8 -*-
 
+import os
 import sys
-sys.path.append('src')
+sys.path.append(os.path.dirname(os.path.dirname(os.pathabspath(__file__))))
 
 import threading
 import time
