@@ -9,6 +9,36 @@ import _future
 
 
 def background(daemon=True):
+    """
+    Decorator to create a worker thread and make method or function call there.
+
+    Decorated function or method create a worker thread and return a future
+    object immediately. The original function or method start to run in the
+    worker thread.
+
+    The worker progress and the result - either normal return value or
+    unhandled exception can be seen through the future object to be returned
+    by decorated function or method.
+
+    See thread_utils._future.Future document for information about
+    what returned by decorated function or method.
+
+    If decorate a function or method with both this decorator and
+    thread_utils.synchronized, decorate with thread_utils.synchronized first;
+    if decorate with both this decorator and @classmethod or @staticmethod,
+    decorate with this method first.
+
+    >>> class Foo(object):
+    >>>     @classmethod
+    >>>     @thread_utils.background()
+    >>>     @thread_utils.synchronized()
+    >>>     def foo(self, val):
+    >>>         return val
+
+    This decorator doesn't affect to thread safty, so it depends on the
+    original function or method whether decorated function or method will be
+    thread safe or not.
+    """
 
     daemon = operator.truth(daemon)
 
@@ -47,4 +77,8 @@ def background(daemon=True):
 
 
 def bg(daemon=True):
+    """
+    Alias for background(daemon=True)
+    """
+
     return background(daemon)

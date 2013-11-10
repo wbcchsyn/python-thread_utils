@@ -6,6 +6,9 @@ import error
 
 
 class Future(object):
+    """
+    Container to store what task returned and what task raised.
+    """
 
     __slots__ = ('ret', 'error', '__is_finished',)
 
@@ -25,10 +28,24 @@ class Future(object):
         self.__is_finished.set()
 
     def is_finished(self):
+        """
+        Return True if the task is working, otherwise return False.
+        """
 
         return self.__is_finished.is_set()
 
     def receive(self, timeout=None):
+        """
+        Wait until the task finished if necessary and return its result.
+
+        This blocks until the task is finished and returns what the task
+        returned when finished normally or raises unhandled exception in task
+        unless timeout occurs.
+
+        When the argument 'timeout' is present and not None, it should
+        be int or floating number; this method raises TimeoutError if task is
+        not finished before timeout.
+        """
 
         # Argument Check
         t = type(timeout)
