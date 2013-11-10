@@ -23,17 +23,15 @@ def background(daemon=True):
     See thread_utils._future.Future document for information about
     what returned by decorated function or method.
 
-    If decorate a function or method with both this decorator and
-    thread_utils.synchronized, decorate with thread_utils.synchronized first;
-    if decorate with both this decorator and @classmethod or @staticmethod,
-    decorate with this method first.
+    This method can't decorate classmethod nor staticmethod.
+    In such case, make classmethod or staticmethod after decorate with this
+    like as follows.
 
-    >>> class Foo(object):
-    >>>     @classmethod
-    >>>     @thread_utils.background()
-    >>>     @thread_utils.synchronized()
-    >>>     def foo(self, val):
-    >>>         return val
+    >> class Foo(object):
+    >>     @classmethod
+    >>     @background.
+    >>     def foo(self, val):
+    >>         return val
 
     This decorator doesn't affect to thread safty, so it depends on the
     original function or method whether decorated function or method will be

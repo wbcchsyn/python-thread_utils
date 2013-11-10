@@ -43,9 +43,9 @@ class Pool(object):
         new worker. This regeneration is done automatically so programer don't
         have to consider it.
 
-        Argument 'daemon' specifies make workers daemonic or not. If it is True,
-        workers stop when the main thread finished even though some tasks is
-        left undone; otherwise workers carry on doing tasks untill all the
+        Argument 'daemon' specifies make workers daemonic or not. If it is
+        True, workers stop when the main thread finished even though some tasks
+        is left undone; otherwise workers carry on doing tasks untill all the
         tasks are done. The default value is True.
         """
 
@@ -109,14 +109,15 @@ class Pool(object):
         or method or classmethod or staticmethod. the optional arguments are
         passed to the called.
 
-        For example, to call instance method foo.bar(1, a=2) as a task will be
-        as follows.
-        >>> p = Pool()
-        >>> p.send(foo.bar, 1, a=2)
+        For example, the following call instance method foo.bar(1, op=2) as a
+        task.
 
-        The created task is done by worker sometime. Its progress and the result
-        - either normal return valud or unhandled exception can be seen through
-        the future object to be returned by this method.
+        >> p = Pool()
+        >> p.send(foo.bar, 1, op=2)
+
+        The created task is done by worker sometime. Its progress and the
+        result - either normal return valud or unhandled exception can be seen
+        through the future object to be returned by this method.
         See help(thread_utils._future.Future) for information about what is
         returned by this method.
 

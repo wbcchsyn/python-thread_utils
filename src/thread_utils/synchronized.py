@@ -17,16 +17,15 @@ def synchronized(func):
     are waiting. It is after the 1st thread finishes when 2nd thread starts
     to do it.
 
-    If decorate a function or method with this decorator and
-    thread_utils.background decorator or @classmethod or @staticmethod,
-    decorate with this method first like following.
+    This method can't decorate classmethod nor staticmethod.
+    In such case, make classmethod or staticmethod after decorate with this
+    like as follows.
 
-    >>> class Foo(object):
-    >>>     @classmethod
-    >>>     @thread_utils.background()
-    >>>     @thread_utils.synchronized
-    >>>     def foo(val):
-    >>>         return val
+    >> class Foo(object):
+    >>     @classmethod
+    >>     @synchronized
+    >>     def foo(val):
+    >>         return val
     """
 
     # Argument Check
