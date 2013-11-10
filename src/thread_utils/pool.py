@@ -22,7 +22,7 @@ class Pool(object):
     method after finished to use this object.
     """
 
-    class Task(object):
+    class __Task(object):
         __slots__ = ("future", "called", "args", "kwargs",)
 
         def __init__(self, future, called, *args, **kwargs):
@@ -77,11 +77,11 @@ class Pool(object):
             self.__create_worker()
 
     def __create_worker(self):
-        t = threading.Thread(target=self.run)
+        t = threading.Thread(target=self.__run)
         t.daemon = self.daemon
         t.start()
 
-    def run(self):
+    def __run(self):
         try:
             for i in xrange(self.loop_count):
                 task = self.tasks.get()
@@ -99,7 +99,7 @@ class Pool(object):
                 self.__create_worker()
 
         finally:
-            _gc.put(threading.current_thread())
+            _gc._put(threading.current_thread())
 
     def send(self, called, *args, **kwargs):
         """
@@ -130,7 +130,7 @@ class Pool(object):
                             "callable.")
 
         future = _future.Future()
-        task = self.Task(future, called, *args, **kwargs)
+        task = self.__Task(future, called, *args, **kwargs)
         with self.lock:
             if self.is_killed:
                 raise error.DeadPoolError("Pool.send is called after killed.")

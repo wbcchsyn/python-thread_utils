@@ -59,7 +59,7 @@ def background(daemon=True):
                     future._set_error(e)
 
                 finally:
-                    _gc.put(threading.current_thread())
+                    _gc._put(threading.current_thread())
 
             t = threading.Thread(target=run, args=args, kwargs=kwargs)
             future = _future.Future()
@@ -72,11 +72,3 @@ def background(daemon=True):
         return wrapper
 
     return decorator
-
-
-def bg(daemon=True):
-    """
-    Alias for background(daemon=True)
-    """
-
-    return background(daemon)

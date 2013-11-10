@@ -10,21 +10,21 @@ class Future(object):
     Container to store what task returned and what task raised.
     """
 
-    __slots__ = ('ret', 'error', '__is_finished',)
+    __slots__ = ('__ret', '__error', '__is_finished',)
 
     def __init__(self):
         self.__is_finished = threading.Event()
 
     def _set_return(self, ret):
 
-        self.ret = ret
-        self.error = None
+        self.__ret = ret
+        self.__error = None
         self.__is_finished.set()
 
     def _set_error(self, error):
 
-        self.ret = None
-        self.error = error
+        self.__ret = None
+        self.__error = error
         self.__is_finished.set()
 
     def is_finished(self):
@@ -58,7 +58,7 @@ class Future(object):
         if not self.is_finished():
             raise error.TimeoutError
 
-        if self.error is not None:
-            raise self.error
+        if self.__error is not None:
+            raise self.__error
         else:
-            return self.ret
+            return self.__ret
