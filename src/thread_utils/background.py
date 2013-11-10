@@ -52,12 +52,7 @@ def background(daemon=True):
 
             def run(*args, **kwargs):
                 try:
-                    ret = func(*args, **kwargs)
-                    future._set_return(ret)
-
-                except BaseException as e:
-                    future._set_error(e)
-
+                    future._run(func, *args, **kwargs)
                 finally:
                     _gc._put(threading.current_thread())
 

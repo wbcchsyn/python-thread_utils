@@ -10,22 +10,23 @@ class Future(object):
     Container to store what task returned and what task raised.
     """
 
-    __slots__ = ('__ret', '__error', '__is_finished',)
+    __slots__ = ('__result', '__is_error', '__is_finished')
 
     def __init__(self):
         self.__is_finished = threading.Event()
+        self.__is_finished.clear()
 
-    def _set_return(self, ret):
+    def _run(self, func, *args, **kwargs):
+        try:
+            self.__result = func(*args, **kwargs)
+            self.__is_error = False
 
-        self.__ret = ret
-        self.__error = None
-        self.__is_finished.set()
+        except BaseException as e:
+            self.__result = e
+            self.__is_error = True
 
-    def _set_error(self, error):
-
-        self.__ret = None
-        self.__error = error
-        self.__is_finished.set()
+        finally:
+            self.__is_finished.set()
 
     def is_finished(self):
         """
@@ -48,8 +49,9 @@ class Future(object):
         """
 
         # Argument Check
-        t = type(timeout)
-        if (timeout is not None) and (t is not int) and (t is not float):
+        if (timeout is not None) and \
+                (not isinstance(timeout, int)) and \
+                (not isinstance(timeout, float)):
             raise TypeError("The argument 2 'timeout' is requested "
                             "to be None, or int, or float.")
 
@@ -58,7 +60,7 @@ class Future(object):
         if not self.is_finished():
             raise error.TimeoutError
 
-        if self.__error is not None:
-            raise self.__error
+        if self.__is_error:
+            raise self.__result
         else:
-            return self.__ret
+            return self.__result

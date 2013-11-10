@@ -87,13 +87,7 @@ class Pool(object):
                 task = self.tasks.get()
                 if task is None:
                     return
-
-                try:
-                    ret = task.called(*task.args, **task.kwargs)
-                    task.future._set_return(ret)
-
-                except BaseException as e:
-                    task.future._set_error(e)
+                task.future._run(task.called, *task.args, **task.kwargs)
 
             else:
                 self.__create_worker()
