@@ -13,7 +13,7 @@ def __gc():
         __TERMINATED.get().join()
 
 
-def put(thread):
+def _put(thread):
     __TERMINATED.put(thread)
 
 
