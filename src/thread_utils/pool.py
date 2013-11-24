@@ -12,22 +12,22 @@ import error
 
 class Pool(object):
     """
-    Pool worker threads and do tasks parallel in background.
+    Pool worker threads and do tasks parallel using them.
 
-    'send' method will create a new task; the task is queued and will be done
-    parallel in order.
+    Tasks will be created by `send' method. This method creates a new task,
+    queue it and returns a Future object immediately. The returned future
+    object monitors the task progress and stores the result.
 
-    This class can be used in with statement and worker threads are killed
-    when exit from with statement. Otherwise, programmer must call 'kill'
-    method after finished to use this object.
+    The workers are reused for many times, so after using this object, kill
+    method must be called to join workers except for used in with statement.
     """
 
     class __Task(object):
-        __slots__ = ("future", "called", "args", "kwargs",)
+        __slots__ = ("future", "func", "args", "kwargs",)
 
-        def __init__(self, future, called, *args, **kwargs):
+        def __init__(self, future, func, *args, **kwargs):
             self.future = future
-            self.called = called
+            self.func = func
             self.args = args
             self.kwargs = kwargs
 
@@ -35,18 +35,15 @@ class Pool(object):
         """
         All arguments are optional.
 
-        Argument 'worker_size' specifies parallelism level. The object
-        do this number tasks at the same time. It's default is 1.
+        Argument `worker_size' specifies the number of the worker thread.
+        The object can do this number of tasks at the same time parallel. Each
+        worker will do tasks `loop_count' times. After that, the worker kill
+        itself and a new worker is created.
 
-        Argument 'loop_count' specifies how many tasks each worker do. Workers
-        stop after done this count of task for garbage collection and create a
-        new worker. This regeneration is done automatically so programer don't
-        have to consider it.
+        If argument `daemon' is True, the worker thread will be daemonic, or
+        not. Python program exits when only daemon threads are left.
 
-        Argument 'daemon' specifies make workers daemonic or not. If it is
-        True, workers stop when the main thread finished even though some tasks
-        is left undone; otherwise workers carry on doing tasks untill all the
-        tasks are done. The default value is True.
+        This constructor is thread safe.
         """
 
         # Argument Check
@@ -87,7 +84,7 @@ class Pool(object):
                 task = self.tasks.get()
                 if task is None:
                     return
-                task.future._run(task.called, *task.args, **task.kwargs)
+                task.future._run(task.func, *task.args, **task.kwargs)
 
             else:
                 self.__create_worker()
@@ -95,36 +92,50 @@ class Pool(object):
         finally:
             _gc._put(threading.current_thread())
 
-    def send(self, called, *args, **kwargs):
+    def send(self, func, *args, **kwargs):
         """
-        Create a task, queue it and return the future object immediately.
+        Create a new task, queue it and return a Future object.
 
-        In the task, the argument 'called' is called; it should be function
-        or method or classmethod or staticmethod. the optional arguments are
-        passed to the called.
+        Argument `func' is a callable object invoked by workers, and *args
+        and **kwargs are passed to it.
 
-        For example, the following call instance method foo.bar(1, op=2) as a
-        task.
+        The returned Future object monitors the progress of invoked callable
+        and stores the result.
 
-        >> p = Pool()
-        >> p.send(foo.bar, 1, op=2)
+          import thread_utils
+          import time
 
-        The created task is done by worker sometime. Its progress and the
-        result - either normal return valud or unhandled exception can be seen
-        through the future object to be returned by this method.
-        See help(thread_utils._future.Future) for information about what is
-        returned by this method.
+          def message(msg):
+              time.sleep(1)
+              return msg
+
+          pool = thread_utils.Pool(worker_size=3)
+          futures = []
+          with thread_utils.Pool(worker_size=3) as pool:
+              for i in xrange(7):
+                  futures.append(pool.send(message, "Message %d." % i))
+
+          # First, sleep one second and "Message 0", "Message 1", "Message 2"
+          # will be displayed.
+          # After one second, Message 3 - 5 will be displayed.
+          # Finally, "Message 6" will be displayed and program will exit.
+          for f in futures:
+              print f.receive()
+
+        See help(thread_utils.Future) for more detail abaout the return value.
+
+        This method raises DeadPoolError if called after kill method is called.
 
         This method is thread safe.
         """
 
         # Argument Check
-        if not callable(called):
-            raise TypeError("The argument 2 'called' is requested to be "
+        if not callable(func):
+            raise TypeError("The argument 2 'func' is requested to be "
                             "callable.")
 
         future = _future.Future()
-        task = self.__Task(future, called, *args, **kwargs)
+        task = self.__Task(future, func, *args, **kwargs)
         with self.lock:
             if self.is_killed:
                 raise error.DeadPoolError("Pool.send is called after killed.")
@@ -134,13 +145,14 @@ class Pool(object):
 
     def kill(self):
         """
-        Set kill flag and stop to create a new task.
+        Stop to create a new task and send tasks to terminate to all workers.
+        This method returns immediately however workers will work till all
+        tasks to be sent were done. After all tasks are finished, workers kill
+        themselves.
 
-        After this method is called, method 'send' will raise DeadPoolError
-        when called.
-
-        This method won't block and return soon, however, tasks in queue will
-        be done in order. Workers will kill itself after all the task is done.
+        If this class is used in with statement, this method is called when the
+        block exited. Otherwise, this method must be called after finished
+        using the object.
 
         This method is thread safe.
         """

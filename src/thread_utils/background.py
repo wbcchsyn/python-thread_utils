@@ -10,32 +10,68 @@ import _future
 
 def background(daemon=True):
     """
-    Decorator to create a worker thread and make method or function call there.
+    Decorator that creates a worker thread and invokes callable there.
 
-    Decorated function or method create a worker thread and return a future
-    object immediately. The original function or method start to run in the
-    worker thread.
+    Decorated callable object returns a Future object immediately and invoked
+    callable starts to run in worker thread. If argument `daemon' is True,
+    the worker thread will be daemonic; otherwise not. Python program exits
+    when only daemon threads are left.
 
-    The worker progress and the result - either normal return value or
-    unhandled exception can be seen through the future object to be returned
-    by decorated function or method.
+    In the following example, function sleep_sort print positive numbers in
+    asending order. The main thread will terminate soon, however workers
+    display numbers after that.
 
-    See thread_utils._future.Future document for information about
-    what returned by decorated function or method.
+       import thread_utils
+       import time
+
+       @thread_utils.background(daemon=False)
+       def _sleep_print(n):
+           time.sleep(n)
+           print n
+
+       def sleep_sort(un_sorted_list):
+           for i in un_sorted_list:
+               _sleep_print(i)
+
+       sleep_sort([3,1,4,2]) # Numbers are displayed in asending this order.
+
+    The decorated callable returns a Future object immediately; it monitors
+    invoked callable progress and stores the result. The foreground thread can
+    access to the result of invoked callable through the future object like as
+    follows.
+
+       import thread_utils
+       import time
+
+       @thread_utils.background(daemon=True)
+       def add(m, n):
+           time.sleep(m)
+           return m + n
+
+       future = add(3, 5)
+       print "Task started"
+       print future.receive() # Blocks for 3 seconds and display "8".
+
+
+    See help(thread_utils.Future) for more information about it.
+
+    This function decorates only function and method. In case of classmethod or
+    staticmethod, decorating with this method before make classmethod or
+    staticmethod.
 
     This method can't decorate classmethod nor staticmethod.
-    In such case, make classmethod or staticmethod after decorate with this
-    like as follows.
+    In such case, make classmethod or staticmethod after decorate with this.
 
-    >> class Foo(object):
-    >>     @classmethod
-    >>     @background.
-    >>     def foo(self, val):
-    >>         return val
+       import thread_utils
 
-    This decorator doesn't affect to thread safty, so it depends on the
-    original function or method whether decorated function or method will be
-    thread safe or not.
+       class Foo(object):
+           @classmethod
+           @thread_utils.background(daemon=False)
+           def foo(cls):
+               pass
+
+    This decorator doesn't affect to thread safty, so it depends on the invoked
+    callable whether decorated will be thread safe or not.
     """
 
     daemon = operator.truth(daemon)
