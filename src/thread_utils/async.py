@@ -86,14 +86,14 @@ def async(daemon=True):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
 
-            def run(*args, **kwargs):
+            def run():
                 try:
-                    future._run(func, *args, **kwargs)
+                    future._run()
                 finally:
                     _gc._put(threading.current_thread())
 
-            t = threading.Thread(target=run, args=args, kwargs=kwargs)
-            future = _future.Future()
+            t = threading.Thread(target=run)
+            future = _future.Future._create(func, *args, **kwargs)
 
             t.daemon = daemon
             t.start()

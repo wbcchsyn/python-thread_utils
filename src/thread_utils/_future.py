@@ -17,15 +17,29 @@ class Future(object):
     decorated by thread_utils.async.
     """
 
-    __slots__ = ('__result', '__is_error', '__is_finished')
+    __slots__ = ('__result', '__is_error', '__is_finished', '__func', '__args',
+                 '__kwargs')
 
-    def __init__(self):
+    def __new__(cls, *args, **kwargs):
+        raise error.Error("Use Future._create to build this class.")
+
+    @classmethod
+    def _create(cls, func, *args, **kwargs):
+        obj = super(cls, cls).__new__(cls)
+        obj.__init__(func, *args, **kwargs)
+        return obj
+
+    def __init__(self, func, *args, **kwargs):
         self.__is_finished = threading.Event()
         self.__is_finished.clear()
+        self.__func = func
+        self.__args = args
+        self.__kwargs = kwargs
+        return self
 
-    def _run(self, func, *args, **kwargs):
+    def _run(self):
         try:
-            self.__result = func(*args, **kwargs)
+            self.__result = self.__func(*self.__args, **self.__kwargs)
             self.__is_error = False
 
         except BaseException as e:

@@ -22,15 +22,6 @@ class Pool(object):
     method must be called to join workers except for used in with statement.
     """
 
-    class __Task(object):
-        __slots__ = ("future", "func", "args", "kwargs",)
-
-        def __init__(self, future, func, *args, **kwargs):
-            self.future = future
-            self.func = func
-            self.args = args
-            self.kwargs = kwargs
-
     def __init__(self, worker_size=1, loop_count=sys.maxint, daemon=True):
         """
         All arguments are optional.
@@ -84,7 +75,7 @@ class Pool(object):
                 task = self.tasks.get()
                 if task is None:
                     return
-                task.future._run(task.func, *task.args, **task.kwargs)
+                task._run()
 
             else:
                 self.__create_worker()
@@ -134,12 +125,11 @@ class Pool(object):
             raise TypeError("The argument 2 'func' is requested to be "
                             "callable.")
 
-        future = _future.Future()
-        task = self.__Task(future, func, *args, **kwargs)
+        future = _future.Future._create(func, *args, **kwargs)
         with self.lock:
             if self.is_killed:
                 raise error.DeadPoolError("Pool.send is called after killed.")
-            self.tasks.put(task)
+            self.tasks.put(future)
 
         return future
 
