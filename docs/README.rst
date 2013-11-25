@@ -32,8 +32,7 @@ Usage
 =====
 This module defines the following functions and class.
 
-  | thread_utils.background(daemon=True)
-  | thread_utils.bg(daemon=True)
+  thread_utils.async(daemon=True)
 
     Decorator that creates a worker thread and invokes callable there.
 
@@ -55,7 +54,7 @@ This module defines the following functions and class.
        import thread_utils
        import time
 
-       @thread_utils.background(daemon=False)
+       @thread_utils.async(daemon=False)
        def _sleep_print(n):
            time.sleep(n)
            print n
@@ -80,7 +79,7 @@ This module defines the following functions and class.
        import thread_utils
        import time
 
-       @thread_utils.background(daemon=True)
+       @thread_utils.async(daemon=True)
        def add(m, n):
            time.sleep(m)
            return m + n
@@ -100,7 +99,7 @@ This module defines the following functions and class.
        
        class Foo(object):
            @classmethod
-           @thread_utils.background(daemon=False)
+           @thread_utils.async(daemon=False)
            def foo(cls):
                pass
 
@@ -133,7 +132,7 @@ This module defines the following functions and class.
        def foo():
            time.sleep(1)
 
-       @thread_utils.background(daemon=False)
+       @thread_utils.async(daemon=False)
        def create_worker():
            print "Worker is started."
            foo()
@@ -165,7 +164,7 @@ Future.receive(timeout=None) blocks until timeout or task is finished and
 returns what callable invoked task returns or raises its unhandled exception.
 
 The instance will be created by thread_utils.Pool.send method or callable
-decorated by thread_utils.background.
+decorated by thread_utils.async.
 
 Future.is_finished()
 

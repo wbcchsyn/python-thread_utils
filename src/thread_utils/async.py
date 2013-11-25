@@ -8,7 +8,7 @@ import _gc
 import _future
 
 
-def background(daemon=True):
+def async(daemon=True):
     """
     Decorator that creates a worker thread and invokes callable there.
 
@@ -24,7 +24,7 @@ def background(daemon=True):
        import thread_utils
        import time
 
-       @thread_utils.background(daemon=False)
+       @thread_utils.async(daemon=False)
        def _sleep_print(n):
            time.sleep(n)
            print n
@@ -43,7 +43,7 @@ def background(daemon=True):
        import thread_utils
        import time
 
-       @thread_utils.background(daemon=True)
+       @thread_utils.async(daemon=True)
        def add(m, n):
            time.sleep(m)
            return m + n
@@ -66,7 +66,7 @@ def background(daemon=True):
 
        class Foo(object):
            @classmethod
-           @thread_utils.background(daemon=False)
+           @thread_utils.async(daemon=False)
            def foo(cls):
                pass
 

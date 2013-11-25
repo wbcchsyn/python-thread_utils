@@ -14,7 +14,7 @@ class Future(object):
     unhandled exception.
 
     The instance will be created by thread_utils.Pool.send method or callable
-    decorated by thread_utils.background.
+    decorated by thread_utils.async.
     """
 
     __slots__ = ('__result', '__is_error', '__is_finished')
