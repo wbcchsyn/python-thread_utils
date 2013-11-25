@@ -22,6 +22,9 @@ class Pool(object):
     method must be called to join workers except for used in with statement.
     """
 
+    __slots__ = ('__worker_size', '__loop_count', '__daemon', '__futures',
+                 '__lock', '__is_killed',)
+
     def __init__(self, worker_size=1, loop_count=sys.maxint, daemon=True):
         """
         All arguments are optional.
@@ -53,26 +56,26 @@ class Pool(object):
                              " or larger than 1.")
 
         # main
-        self.worker_size = worker_size
-        self.loop_count = loop_count
-        self.daemon = operator.truth(daemon)
+        self.__worker_size = worker_size
+        self.__loop_count = loop_count
+        self.__daemon = operator.truth(daemon)
 
-        self.tasks = Queue.Queue()
-        self.lock = threading.Lock()
-        self.is_killed = False
+        self.__futures = Queue.Queue()
+        self.__lock = threading.Lock()
+        self.__is_killed = False
 
         for i in xrange(worker_size):
             self.__create_worker()
 
     def __create_worker(self):
         t = threading.Thread(target=self.__run)
-        t.daemon = self.daemon
+        t.daemon = self.__daemon
         t.start()
 
     def __run(self):
         try:
-            for i in xrange(self.loop_count):
-                task = self.tasks.get()
+            for i in xrange(self.__loop_count):
+                task = self.__futures.get()
                 if task is None:
                     return
                 task._run()
@@ -126,10 +129,10 @@ class Pool(object):
                             "callable.")
 
         future = _future.Future._create(func, *args, **kwargs)
-        with self.lock:
-            if self.is_killed:
+        with self.__lock:
+            if self.__is_killed:
                 raise error.DeadPoolError("Pool.send is called after killed.")
-            self.tasks.put(future)
+            self.__futures.put(future)
 
         return future
 
@@ -147,10 +150,10 @@ class Pool(object):
         This method is thread safe.
         """
 
-        with self.lock:
-            self.is_killed = True
+        with self.__lock:
+            self.__is_killed = True
 
-        [self.tasks.put(None) for i in xrange(self.worker_size)]
+        [self.__futures.put(None) for i in xrange(self.__worker_size)]
 
     def __del__(self):
         self.kill()
