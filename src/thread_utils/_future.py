@@ -35,7 +35,6 @@ class Future(object):
         self.__func = func
         self.__args = args
         self.__kwargs = kwargs
-        return self
 
     def _run(self):
         try:
