@@ -75,10 +75,10 @@ class Pool(object):
     def __run(self):
         try:
             for i in xrange(self.__loop_count):
-                task = self.__futures.get()
-                if task is None:
+                future = self.__futures.get()
+                if future is None:
                     return
-                task._run()
+                future._run()
 
             else:
                 self.__create_worker()
