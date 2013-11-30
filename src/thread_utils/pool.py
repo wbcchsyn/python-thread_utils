@@ -14,9 +14,9 @@ class Pool(object):
     """
     Pool worker threads and do tasks parallel using them.
 
-    Tasks will be created by `send' method. This method creates a new task,
-    queue it and returns a Future object immediately. The returned future
-    object monitors the task progress and stores the result.
+    `send' method queues specified callable with the arguments and returns a
+    Future object immediately. The returned future object monitors the invoked
+    callable progress and stores the result.
 
     The workers are reused for many times, so after using this object, kill
     method must be called to join workers except for used in with statement.
@@ -31,8 +31,8 @@ class Pool(object):
 
         Argument `worker_size' specifies the number of the worker thread.
         The object can do this number of tasks at the same time parallel. Each
-        worker will do tasks `loop_count' times. After that, the worker kill
-        itself and a new worker is created.
+        worker will invoke callable `loop_count' times. After that, the worker
+        kill itself and a new worker is created.
 
         If argument `daemon' is True, the worker thread will be daemonic, or
         not. Python program exits when only daemon threads are left.
@@ -88,7 +88,7 @@ class Pool(object):
 
     def send(self, func, *args, **kwargs):
         """
-        Create a new task, queue it and return a Future object.
+        Queue specified callable with the arguments and returns a Future object.
 
         Argument `func' is a callable object invoked by workers, and *args
         and **kwargs are passed to it.
@@ -138,16 +138,18 @@ class Pool(object):
 
     def kill(self):
         """
-        Stop to create a new task and send tasks to terminate to all workers.
-        This method returns immediately however workers will work till all
-        tasks to be sent were done. After all tasks are finished, workers kill
-        themselves.
+        Set internal flag and send terminate signal to all worker threads.
+
+        This method returns immediately, however workers will work till the all
+        queued callable are finished. After all callables are finished, workers
+        kill themselves. If `send' is called after this methos is called, it
+        raises DeadPoolError.
 
         If this class is used in with statement, this method is called when the
         block exited. Otherwise, this method must be called after finished
         using the object.
 
-        This method is thread safe.
+        This method is thread safe and can be callable many times.
         """
 
         with self.__lock:

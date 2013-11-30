@@ -7,11 +7,11 @@ import error
 
 class Future(object):
     """
-    This class monitors associated task and stores its return value or
-    unhandled exception. Future.is_finished() returns whether the task is
-    finished or not. Future.receive(timeout=None) blocks until timeout or task
-    is finished and returns what callable invoked task returns or raises its
-    unhandled exception.
+    This class monitors associated callable progress and stores its return
+    value or unhandled exception. Future.is_finished() returns whether the
+    invoked callable is finished or not. Future.receive(timeout=None) blocks
+    until timeout or invoked callable is finished and returns what the callable
+    returns or raises its unhandled exception.
 
     The instance will be created by thread_utils.Pool.send method or callable
     decorated by thread_utils.async.
@@ -50,15 +50,15 @@ class Future(object):
 
     def is_finished(self):
         """
-        Return True if task is finished. Otherwise, return False.
+        Return True if invoked callable is finished. Otherwise, return False.
         """
 
         return self.__is_finished.is_set()
 
     def receive(self, timeout=None):
         """
-        Block until timeout or task is finished and returns what invoked
-        callable returned or raises its unhandled exception.
+        Block until timeout or invoked callable is finished and returns what
+        the callable returned or raises its unhandled exception.
 
         When argument \`timeout\' is presend and is not None, it shoule be int
         or floating number. This method raises TimeoutError if task won't be
