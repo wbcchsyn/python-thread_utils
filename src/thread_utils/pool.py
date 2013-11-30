@@ -151,6 +151,8 @@ class Pool(object):
         """
 
         with self.__lock:
+            if self.__is_killed:
+                return
             self.__is_killed = True
 
         [self.__futures.put(None) for i in xrange(self.__worker_size)]
