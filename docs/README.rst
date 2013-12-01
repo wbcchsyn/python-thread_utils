@@ -277,7 +277,7 @@ class thread_utils.Pool(worker_size=1, loop_count=sys.maxint, daemon=True)
              futures.append(pool.send(message, "Message %d." % i))
 
      for f in futures:
-         print futures.receive()
+         print f.receive()
 
 Development
 ===========
