@@ -88,7 +88,8 @@ class Pool(object):
 
     def send(self, func, *args, **kwargs):
         """
-        Queue specified callable with the arguments and returns a Future object.
+        Queue specified callable with the arguments and returns a Future
+        object.
 
         Argument `func' is a callable object invoked by workers, and *args
         and **kwargs are passed to it.
