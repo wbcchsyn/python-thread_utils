@@ -9,8 +9,13 @@ __GC = None
 
 
 def __gc():
-    while True:
-        __TERMINATED.get().join()
+    try:
+        while True:
+            __TERMINATED.get().join()
+    except:
+        # Daemon thread seldom raises error at exit in some conditions in
+        # python 2.6.
+        pass
 
 
 def _put(thread):
