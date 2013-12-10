@@ -21,6 +21,11 @@ Tested
 Setup
 =====
 
+* Install from pip
+  ::
+
+     $ sudo pip install thread_utils
+
 * Install from git.
   ::
 
