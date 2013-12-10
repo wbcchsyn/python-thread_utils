@@ -14,22 +14,16 @@ class Pool(object):
     """
     Pool worker threads and do tasks parallel using them.
 
-    Tasks will be created by `send' method. This method creates a new task,
-    queue it and returns a Future object immediately. The returned future
-    object monitors the task progress and stores the result.
+    `send' method queues specified callable with the arguments and returns a
+    Future object immediately. The returned future object monitors the invoked
+    callable progress and stores the result.
 
     The workers are reused for many times, so after using this object, kill
     method must be called to join workers except for used in with statement.
     """
 
-    class __Task(object):
-        __slots__ = ("future", "func", "args", "kwargs",)
-
-        def __init__(self, future, func, *args, **kwargs):
-            self.future = future
-            self.func = func
-            self.args = args
-            self.kwargs = kwargs
+    __slots__ = ('__worker_size', '__loop_count', '__daemon', '__futures',
+                 '__lock', '__is_killed',)
 
     def __init__(self, worker_size=1, loop_count=sys.maxint, daemon=True):
         """
@@ -37,8 +31,8 @@ class Pool(object):
 
         Argument `worker_size' specifies the number of the worker thread.
         The object can do this number of tasks at the same time parallel. Each
-        worker will do tasks `loop_count' times. After that, the worker kill
-        itself and a new worker is created.
+        worker will invoke callable `loop_count' times. After that, the worker
+        kill itself and a new worker is created.
 
         If argument `daemon' is True, the worker thread will be daemonic, or
         not. Python program exits when only daemon threads are left.
@@ -62,29 +56,29 @@ class Pool(object):
                              " or larger than 1.")
 
         # main
-        self.worker_size = worker_size
-        self.loop_count = loop_count
-        self.daemon = operator.truth(daemon)
+        self.__worker_size = worker_size
+        self.__loop_count = loop_count
+        self.__daemon = operator.truth(daemon)
 
-        self.tasks = Queue.Queue()
-        self.lock = threading.Lock()
-        self.is_killed = False
+        self.__futures = Queue.Queue()
+        self.__lock = threading.Lock()
+        self.__is_killed = False
 
         for i in xrange(worker_size):
             self.__create_worker()
 
     def __create_worker(self):
         t = threading.Thread(target=self.__run)
-        t.daemon = self.daemon
+        t.daemon = self.__daemon
         t.start()
 
     def __run(self):
         try:
-            for i in xrange(self.loop_count):
-                task = self.tasks.get()
-                if task is None:
+            for i in xrange(self.__loop_count):
+                future = self.__futures.get()
+                if future is None:
                     return
-                task.future._run(task.func, *task.args, **task.kwargs)
+                future._run()
 
             else:
                 self.__create_worker()
@@ -94,7 +88,8 @@ class Pool(object):
 
     def send(self, func, *args, **kwargs):
         """
-        Create a new task, queue it and return a Future object.
+        Queue specified callable with the arguments and returns a Future
+        object.
 
         Argument `func' is a callable object invoked by workers, and *args
         and **kwargs are passed to it.
@@ -134,33 +129,36 @@ class Pool(object):
             raise TypeError("The argument 2 'func' is requested to be "
                             "callable.")
 
-        future = _future.Future()
-        task = self.__Task(future, func, *args, **kwargs)
-        with self.lock:
-            if self.is_killed:
+        future = _future.Future._create(func, *args, **kwargs)
+        with self.__lock:
+            if self.__is_killed:
                 raise error.DeadPoolError("Pool.send is called after killed.")
-            self.tasks.put(task)
+            self.__futures.put(future)
 
         return future
 
     def kill(self):
         """
-        Stop to create a new task and send tasks to terminate to all workers.
-        This method returns immediately however workers will work till all
-        tasks to be sent were done. After all tasks are finished, workers kill
-        themselves.
+        Set internal flag and send terminate signal to all worker threads.
+
+        This method returns immediately, however workers will work till the all
+        queued callable are finished. After all callables are finished, workers
+        kill themselves. If `send' is called after this methos is called, it
+        raises DeadPoolError.
 
         If this class is used in with statement, this method is called when the
         block exited. Otherwise, this method must be called after finished
         using the object.
 
-        This method is thread safe.
+        This method is thread safe and can be callable many times.
         """
 
-        with self.lock:
-            self.is_killed = True
+        with self.__lock:
+            if self.__is_killed:
+                return
+            self.__is_killed = True
 
-        [self.tasks.put(None) for i in xrange(self.worker_size)]
+        [self.__futures.put(None) for i in xrange(self.__worker_size)]
 
     def __del__(self):
         self.kill()

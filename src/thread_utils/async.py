@@ -8,7 +8,7 @@ import _gc
 import _future
 
 
-def background(daemon=True):
+def async(daemon=True):
     """
     Decorator that creates a worker thread and invokes callable there.
 
@@ -24,7 +24,7 @@ def background(daemon=True):
        import thread_utils
        import time
 
-       @thread_utils.background(daemon=False)
+       @thread_utils.async(daemon=False)
        def _sleep_print(n):
            time.sleep(n)
            print n
@@ -43,7 +43,7 @@ def background(daemon=True):
        import thread_utils
        import time
 
-       @thread_utils.background(daemon=True)
+       @thread_utils.async(daemon=True)
        def add(m, n):
            time.sleep(m)
            return m + n
@@ -66,7 +66,7 @@ def background(daemon=True):
 
        class Foo(object):
            @classmethod
-           @thread_utils.background(daemon=False)
+           @thread_utils.async(daemon=False)
            def foo(cls):
                pass
 
@@ -86,14 +86,14 @@ def background(daemon=True):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
 
-            def run(*args, **kwargs):
+            def run():
                 try:
-                    future._run(func, *args, **kwargs)
+                    future._run()
                 finally:
                     _gc._put(threading.current_thread())
 
-            t = threading.Thread(target=run, args=args, kwargs=kwargs)
-            future = _future.Future()
+            t = threading.Thread(target=run)
+            future = _future.Future._create(func, *args, **kwargs)
 
             t.daemon = daemon
             t.start()

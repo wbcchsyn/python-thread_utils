@@ -18,49 +18,49 @@ SAMPLE_RESULTS = [0, 3, True, False, "FOO", "", None, object(), Exception()]
 SAMPLE_EXCEPTIONS = [Exception(), RuntimeError("Foo")]
 
 
-class TestReceiveWhatReturnedInBackground(object):
+class TestReceiveWhatInvokedCallableReturned(object):
     """
-    What is returned in background can be accessible from foreground.
+    What invoked callable returned can be accessible from foreground.
 
-    Decorated method or function returns a future object and
-    future.receive() returns what is returned in background.
+    Decorated callable returns a Future object and its receive() method
+    returns what invoked callable returned.
     """
 
-    def test_receive_what_function_returned_in_background(self):
+    def test_receive_what_invoked_function_returned(self):
         """
-        future.receive() returns what function returned in background.
+        Future.receive() returns what invoked function returned.
         """
 
-        @thread_utils.bg()
+        @thread_utils.async()
         def foo(ret):
             return ret
 
         for ret in SAMPLE_RESULTS:
             assert ret is foo(ret).receive()
 
-    def test_receive_what_method_returned_in_background(self):
+    def test_receive_what_invoked_method_returned(self):
         """
-        future.receive() returns what method returned in background.
+        Future.receive() returns what invoked method returned.
         """
 
         class Foo(object):
 
-            @thread_utils.bg()
+            @thread_utils.async()
             def bar(self, n):
                 return n
 
         for ret in SAMPLE_RESULTS:
             assert ret is Foo().bar(ret).receive()
 
-    def test_receive_what_classmethod_returned_in_background(self):
+    def test_receive_what_invoked_classmethod_returned(self):
         """
-        future.receive() returns what classmethod returned in background.
+        Future.receive() returns what invoked classmethod returned.
         """
 
         class Foo(object):
 
             @classmethod
-            @thread_utils.bg()
+            @thread_utils.async()
             def bar(cls, n):
                 return n
 
@@ -68,15 +68,15 @@ class TestReceiveWhatReturnedInBackground(object):
             assert ret is Foo.bar(ret).receive()
             assert ret is Foo().bar(ret).receive()
 
-    def test_receive_returns_what_staticmethod_returned_in_background(self):
+    def test_receive_what_invoked_staticmethod_returned(self):
         """
-        future.receive() returns what staticmethod returned in background.
+        Future.receive() returns what invoked staticmethod returned.
         """
 
         class Foo(object):
 
             @staticmethod
-            @thread_utils.bg()
+            @thread_utils.async()
             def bar(n):
                 return n
 
@@ -85,20 +85,20 @@ class TestReceiveWhatReturnedInBackground(object):
             assert ret is Foo().bar(ret).receive()
 
 
-class TestReceiveWhatRaisedInBackground(object):
+class TestReceiveWhatInvakedCallableRaised(object):
     """
-    Exception raised in background is raised in foreground.
+    Unhandled exception raised by invoked callable is raised in foreground.
 
-    Decorated method or function returns a future object and
-    future.receive() returns what is returned in background.
+    Decorated callable returns a Future object and Future.receive() raises
+    unhandled exception raised by invoked callable.
     """
 
-    def test_receive_raises_what_function_raised_in_background(self):
+    def test_receive_raises_what_invoked_function_raised(self):
         """
-        future.receive() raises what function raised in background.
+        Future.receive() raises what invoked function raised.
         """
 
-        @thread_utils.bg()
+        @thread_utils.async()
         def foo(e):
             raise e
 
@@ -108,13 +108,13 @@ class TestReceiveWhatRaisedInBackground(object):
             except Exception as e:
                 assert exception is e
 
-    def test_receive_raises_what_method_raised_in_background(self):
+    def test_receive_raises_what_invoked_method_raised(self):
         """
-        future.receive() raises what method raised in background.
+        Future.receive() raises what invoked method raised.
         """
 
         class Foo(object):
-            @thread_utils.bg()
+            @thread_utils.async()
             def bar(self, e):
                 raise e
 
@@ -124,14 +124,14 @@ class TestReceiveWhatRaisedInBackground(object):
             except Exception as e:
                 assert exception is e
 
-    def test_receive_raises_what_classfunction_raised_in_background(self):
+    def test_receive_raises_what_invoked_classfunction_raised(self):
         """
-        future.receive() raises what classfunction raised in background.
+        Future.receive() raises what invoked classfunction raised.
         """
 
         class Foo(object):
             @classmethod
-            @thread_utils.bg()
+            @thread_utils.async()
             def bar(cls, e):
                 raise e
 
@@ -141,14 +141,14 @@ class TestReceiveWhatRaisedInBackground(object):
             except Exception as e:
                 assert exception is e
 
-    def test_receive_raises_what_staticmethod_raised_in_background(self):
+    def test_receive_raises_what_invoked_staticmethod_raised(self):
         """
-        future.receive() raises what staticmethod raised in background.
+        future.receive() raises what invoked staticmethod raised.
         """
 
         class Foo(object):
             @staticmethod
-            @thread_utils.bg()
+            @thread_utils.async()
             def bar(e):
                 raise e
 
@@ -164,7 +164,7 @@ def test_worker_thread_was_joined_by_gc():
     Worker thread is joined automatically after finished.
     """
 
-    @thread_utils.bg()
+    @thread_utils.async()
     def foo():
         pass
 
@@ -187,9 +187,9 @@ def test_worker_is_daemonic_unless_specified():
     def foo():
         return threading.current_thread().daemon
 
-    default = thread_utils.bg()(foo)
-    daemonic = thread_utils.bg(daemon=True)(foo)
-    non_daemonic = thread_utils.bg(daemon=False)(foo)
+    default = thread_utils.async()(foo)
+    daemonic = thread_utils.async(daemon=True)(foo)
+    non_daemonic = thread_utils.async(daemon=False)(foo)
 
     assert default().receive()
     assert daemonic().receive()
@@ -198,13 +198,13 @@ def test_worker_is_daemonic_unless_specified():
 
 def test_receive_raises_TimeoutError_if_task_do_not_finish_before_timeout():
     """
-    future.receive() raises TimeoutError if task won't finish before timeout.
+    Future.receive() raises TimeoutError if task won't finish before timeout.
     """
 
     event = threading.Event()
     event.clear()
 
-    @thread_utils.bg()
+    @thread_utils.async()
     def foo():
         event.wait()
 
@@ -222,7 +222,7 @@ def test_is_finished_returns_whether_task_is_finished_or_not():
     event = threading.Event()
     event.clear()
 
-    @thread_utils.bg()
+    @thread_utils.async()
     def foo():
         event.wait()
 

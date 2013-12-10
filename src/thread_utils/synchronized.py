@@ -27,7 +27,7 @@ def synchronized(func):
        def foo():
            time.sleep(1)
 
-       @thread_utils.background(daemon=False)
+       @thread_utils.async(daemon=False)
        def create_worker():
            print "Worker is started."
            foo()
