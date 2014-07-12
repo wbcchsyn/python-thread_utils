@@ -286,7 +286,9 @@ class thread_utils.Pool(worker_size=1, loop_count=sys.maxint, daemon=True)
 
 Development
 ===========
+
 Install requirements to developing and set pre-commit hook.
+
 ::
 
     $ git clone https://github.com/wbcchsyn/python-thread_utils.git
