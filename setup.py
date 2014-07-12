@@ -41,7 +41,7 @@ requires = []
 
 setup(
     name='thread_utils',
-    version="0.0.1",
+    version="0.1.0",
     description='Thread Utilities for python.',
     long_description=long_description,
     url="https://github.com/wbcchsyn/python-thread_utils",
