@@ -16,17 +16,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
-import os
 from setuptools import setup, find_packages
 
-long_description = file(os.path.join("docs", "README.rst")).read()
+long_description = open("docs/README.rst").read()
 
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
+    "Programming Language :: Python :: 2",
+    "Programming Language :: Python :: 2.6",
     "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.2",
+    "Programming Language :: Python :: 3.3",
+    "Programming Language :: Python :: 3.4",
     "Topic :: Software Development",
     "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Libraries :: Python Modules"
@@ -47,5 +52,6 @@ setup(
     packages=find_packages('src'),
     package_dir={"": "src"},
     platforms=['linux', 'unix'],
-    install_requires=requires
+    install_requires=requires,
+    use_2to3 = True,
 )

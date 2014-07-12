@@ -9,14 +9,17 @@ thread_utils is a utilities for thread program.
 Requirements
 ============
 
-* Python 2.7
+* Python 2.6 or 2.7 or 3.x
 * Unix or Linux platforms which support python thread module.
 
 Tested
 ======
 
-* Ubuntu 12.04 (x86_64)
-* Mac OS X 10.9
+* 2.6.9
+* 2.7.8
+* 3.2.5
+* 3.3.5
+* 3.4.1
 
 Setup
 =====
