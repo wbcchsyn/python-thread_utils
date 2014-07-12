@@ -1,15 +1,17 @@
 #!/bin/bash
 
-which pep8 >/dev/null || exit $?
-which py.test >/dev/null || exit $?
-which pyflakes >/dev/null || exit $?
+set -e
+
+which pep8 >/dev/null
+which py.test >/dev/null
+which pyflakes >/dev/null
+which doc8 >/dev/null
 
 (
-cd $(git rev-parse --show-toplevel)
-pep8 src || exit $?
-find src -name '*.py' -a ! -name '__init__.py' | xargs pyflakes || exit $?
-py.test src || exit $?
-python setup.py check -r || exit $?
+    cd $(git rev-parse --show-toplevel)
+    pep8 src
+    find src -name '*.py' -a ! -name '__init__.py' | xargs pyflakes
+    py.test src
+    doc8 docs
+    python setup.py check -r
 )
-
-exit 0
