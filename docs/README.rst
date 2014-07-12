@@ -101,7 +101,7 @@ This module defines the following functions and class.
     ::
 
        import thread_utils
-       
+
        class Foo(object):
            @classmethod
            @thread_utils.async(daemon=False)
@@ -143,7 +143,7 @@ This module defines the following functions and class.
            foo()
            print "Worker is finished."
 
-       
+
        # Text "Worker is started." will be printed 10 times at once.
        # On the other hand "Worker is finished." will be printed every second.
        for i in xrange(10):
@@ -267,7 +267,7 @@ class thread_utils.Pool(worker_size=1, loop_count=sys.maxint, daemon=True)
 
   It is not necessary to call kill method if use with statement.
   ::
-     
+
      import thread_utils
      import time
 
