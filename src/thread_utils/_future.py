@@ -36,15 +36,6 @@ class Future(object):
     __slots__ = ('__result', '__is_error', '__is_finished', '__func', '__args',
                  '__kwargs')
 
-    def __new__(cls, *args, **kwargs):
-        raise error.Error("Use Future._create to build this class.")
-
-    @classmethod
-    def _create(cls, func, *args, **kwargs):
-        obj = super(cls, cls).__new__(cls)
-        obj.__init__(func, *args, **kwargs)
-        return obj
-
     def __init__(self, func, *args, **kwargs):
         self.__is_finished = threading.Event()
         self.__is_finished.clear()

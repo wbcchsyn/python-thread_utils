@@ -109,7 +109,7 @@ def async(daemon=True):
                     _gc._put(threading.current_thread())
 
             t = threading.Thread(target=run)
-            future = _future.Future._create(func, *args, **kwargs)
+            future = _future.Future(func, *args, **kwargs)
 
             t.daemon = daemon
             t.start()
