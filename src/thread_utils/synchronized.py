@@ -73,6 +73,7 @@ def synchronized(func):
             __METHOD_LOCKS[id(func)] = threading.Lock()
 
     # Acquire the Lock object and execute the funaction.
+    # Only the following function runs when called.
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         with __METHOD_LOCKS[id(func)]:
