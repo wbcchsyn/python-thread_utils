@@ -99,18 +99,18 @@ def async(daemon=True):
             raise TypeError("The 1st argument 'func' is requested "
                             "to be callable.")
 
+        def run(future):
+            try:
+                future._run()
+            finally:
+                _gc._put(threading.current_thread())
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
 
-            def run():
-                try:
-                    future._run()
-                finally:
-                    _gc._put(threading.current_thread())
-
-            t = threading.Thread(target=run)
             future = _future.Future(func, *args, **kwargs)
 
+            t = threading.Thread(target=run, args=(future,))
             t.daemon = daemon
             t.start()
 
