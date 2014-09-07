@@ -63,7 +63,7 @@ class TestCreateAndKill(object):
         futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
         p.kill()
 
-        # check no timeout error occurres.
+        # Check no timeout error occurres.
         [f.receive(timeout=TEST_INTERVAL * 10) for f in futures]
 
     def test_workers_stop_before_all_task_done_when_force_kill(self):
@@ -73,18 +73,18 @@ class TestCreateAndKill(object):
 
         # Wait for pre-tested threads are joined
         time.sleep(TEST_INTERVAL)
-        initial_count = threading.active_count()
 
         p = thread_utils.Pool()
         futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
         p.kill(force=True)
 
-        # Make sure that the worker thread is killed.
-        time.sleep(TEST_INTERVAL * 2)
-        assert threading.active_count() == initial_count
+        # skip the first future check because the result is not stable.
+        del(futures[0])
 
-        # Check some tasks are not finished after no worker is.
-        assert not all([f.is_finished() for f in futures])
+        # Check DeadPoolError is raised
+        for f in futures:
+            with pytest.raises(thread_utils.DeadPoolError):
+                f.receive()
 
 
 class TestReceiveWhatTaskReturned(object):

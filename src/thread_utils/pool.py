@@ -157,11 +157,15 @@ class Pool(object):
         """
         Set internal flag and send terminate signal to all worker threads.
 
-        This method send kill signal to all workers and return immediately.
+        This method sends kill signal to all workers and return immediately.
+
         If the argument force is True, the workers will stop after their
-        current task is finished. In this case, some tasks could be left
-        undone. On the other hand, if the argument force is False, the workers
-        will stop after all queued tasks are finished. The default is False.
+        current task is finished. In this case, some futures could be left
+        undone, and they will raise DeadPoolError when their receive method
+        is called.
+
+        On the other hand, if the argument force is False, the workers will
+        stop after all queued tasks are finished. The default is value False.
 
         If `send' is called after this methos is called, it raises
         DeadPoolError.
@@ -181,13 +185,15 @@ class Pool(object):
             self.__is_killed = True
 
         if force:
-            try:
-                while True:
-                    self.__futures.get(block=False)
-            except Queue.Empty:
-                pass
+            while not self.__futures.empty():
+                f = self.__futures.get(block=False)
+                f._is_error = True
+                f._result = error.DeadPoolError("The pool is killed before the"
+                                                " task is done.")
+                f._is_finished.set()
 
-        [self.__futures.put(None) for i in xrange(self.__worker_size)]
+        for i in xrange(self.__worker_size):
+            self.__futures.put(None)
 
     def __del__(self):
         self.kill()
