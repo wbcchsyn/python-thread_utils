@@ -214,7 +214,7 @@ def test_worker_thread_will_be_used_specified_times():
         return threading.current_thread()
 
     p = thread_utils.Pool(worker_size=1, loop_count=2)
-    futures = [p.send(foo) for i in xrange(3)]
+    futures = [p.send(foo) for i in range(3)]
     assert futures[0].receive() == futures[1].receive()
     assert futures[0].receive() != futures[2].receive()
 

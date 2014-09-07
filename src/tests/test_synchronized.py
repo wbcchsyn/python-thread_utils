@@ -39,7 +39,7 @@ def test_function_simultaneous_access():
         time.sleep(n)
 
     threads = [threading.Thread(target=foo, args=(TEST_INTERVAL,))
-               for i in xrange(TEST_COUNT)]
+               for i in range(TEST_COUNT)]
 
     start = time.time()
     [t.start() for t in threads]
@@ -60,7 +60,7 @@ def test_method_simultaneous_access():
     # Call method of the same object.
     foo = Foo()
     threads = [threading.Thread(target=foo.bar, args=(TEST_INTERVAL,))
-               for i in xrange(TEST_COUNT)]
+               for i in range(TEST_COUNT)]
 
     start = time.time()
     [t.start() for t in threads]
@@ -69,7 +69,7 @@ def test_method_simultaneous_access():
 
     #  same method of various objects.
     threads = [threading.Thread(target=Foo().bar, args=(TEST_INTERVAL,))
-               for i in xrange(TEST_COUNT)]
+               for i in range(TEST_COUNT)]
 
     start = time.time()
     [t.start() for t in threads]
@@ -89,7 +89,7 @@ def test_class_method_simultaneous_access():
             time.sleep(n)
 
     threads = [threading.Thread(target=Foo.bar, args=(TEST_INTERVAL,))
-               for i in xrange(TEST_COUNT)]
+               for i in range(TEST_COUNT)]
 
     start = time.time()
     [t.start() for t in threads]
@@ -109,7 +109,7 @@ def test_static_method_simultaneous_access():
             time.sleep(n)
 
     threads = [threading.Thread(target=Foo.bar, args=(TEST_INTERVAL,))
-               for i in xrange(TEST_COUNT)]
+               for i in range(TEST_COUNT)]
 
     start = time.time()
     [t.start() for t in threads]

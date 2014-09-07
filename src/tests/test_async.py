@@ -188,7 +188,7 @@ def test_worker_thread_was_joined_by_gc():
     time.sleep(TEST_INTERVAL)
 
     active_threads = threading.active_count()
-    [foo() for i in xrange(TEST_COUNT)]
+    [foo() for i in range(TEST_COUNT)]
 
     # Wait for threads are joined.
     time.sleep(TEST_INTERVAL)
