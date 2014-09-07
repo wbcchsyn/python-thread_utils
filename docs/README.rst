@@ -4,7 +4,12 @@
  thread_utils
 ==============
 
-thread_utils is a utilities for thread program.
+Easy to create and to treat python thread.
+
+This module provides thread pool class and decorator to make callable run in
+background thread. The caller can access to the result or the exception through
+the future object easily. The finished threads are joined by garbage
+collection.
 
 Requirements
 ============
@@ -17,6 +22,7 @@ Tested
 
 * 2.6.9
 * 2.7.8
+* 3.1.5
 * 3.2.5
 * 3.3.5
 * 3.4.1
