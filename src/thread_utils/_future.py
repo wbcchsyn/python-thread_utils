@@ -72,13 +72,6 @@ class Future(object):
         finished before timeout.
         """
 
-        # Argument Check
-        if (timeout is not None) and \
-                (not isinstance(timeout, int)) and \
-                (not isinstance(timeout, float)):
-            raise TypeError("The argument 2 'timeout' is requested "
-                            "to be None, or int, or float.")
-
         self.__is_finished.wait(timeout)
 
         if not self.is_finished():
