@@ -28,4 +28,3 @@ Error = __errors.Error
 TimeoutError = __errors.TimeoutError
 DeadPoolError = __errors.DeadPoolError
 Pool = __import__('pool', globals(), locals(), ['Pool'], 1).Pool
-Future = __import__('_future', globals(), locals(), ['Future'], 1).Future
