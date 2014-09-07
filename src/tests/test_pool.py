@@ -33,27 +33,58 @@ SAMPLE_RESULTS = [0, 3, True, False, "FOO", "", None, object(), Exception()]
 SAMPLE_EXCEPTIONS = [Exception(), RuntimeError("Foo")]
 
 
-def test_create_worker_and_kill():
-    """
-    Pool(size) creates specified count of worker threads and kill() kills them.
-    """
+class TestCreateAndKill(object):
 
-    # Wait for pre-tested threads are joined
-    time.sleep(TEST_INTERVAL)
+    def test_create_worker_size(self):
+        """
+        Pool creates specified count of worker threads and kill() stops them.
+        """
 
-    initial_count = threading.active_count()
-    p = thread_utils.Pool(SIZE)
+        # Wait for pre-tested threads are joined
+        time.sleep(TEST_INTERVAL)
 
-    # Wait for all threads are generated.
-    time.sleep(TEST_INTERVAL)
+        initial_count = threading.active_count()
+        p = thread_utils.Pool(SIZE)
+        assert threading.active_count() == initial_count + SIZE
 
-    assert threading.active_count() == initial_count + SIZE
+        p.kill()
 
-    p.kill()
+        # Wait for all threads are killed.
+        time.sleep(TEST_INTERVAL)
+        assert threading.active_count() == initial_count
 
-    # Wait for all threads are killed.
-    time.sleep(TEST_INTERVAL)
-    assert threading.active_count() == initial_count
+    def test_tasks_are_done_after_killed(self):
+        """
+        Pool workers will do all queued tasks before stop when killed.
+        """
+
+        p = thread_utils.Pool()
+
+        futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
+        p.kill()
+
+        # check no timeout error occurres.
+        [f.receive(timeout=TEST_INTERVAL * 10) for f in futures]
+
+    def test_workers_stop_before_all_task_done_when_force_kill(self):
+        """
+        Pool workers will stop even if some tasks are left when forcely killed.
+        """
+
+        # Wait for pre-tested threads are joined
+        time.sleep(TEST_INTERVAL)
+        initial_count = threading.active_count()
+
+        p = thread_utils.Pool()
+        futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
+        p.kill(force=True)
+
+        # Make sure that the worker thread is killed.
+        time.sleep(TEST_INTERVAL * 2)
+        assert threading.active_count() == initial_count
+
+        # Check some tasks are not finished after no worker is.
+        assert not all([f.is_finished() for f in futures])
 
 
 class TestReceiveWhatTaskReturned(object):

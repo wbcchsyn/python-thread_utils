@@ -91,7 +91,7 @@ class Pool(object):
     def __run(self):
         try:
             for i in xrange(self.__loop_count):
-                future = self.__futures.get()
+                future = self.__futures.get(block=True)
                 if future is None:
                     return
                 future._run()
@@ -153,18 +153,24 @@ class Pool(object):
 
         return future
 
-    def kill(self):
+    def kill(self, force=False):
         """
         Set internal flag and send terminate signal to all worker threads.
 
-        This method returns immediately, however workers will work till the all
-        queued callable are finished. After all callables are finished, workers
-        kill themselves. If `send' is called after this methos is called, it
-        raises DeadPoolError.
+        This method send kill signal to all workers and return immediately.
+        If the argument force is True, the workers will stop after their
+        current task is finished. In this case, some tasks could be left
+        undone. On the other hand, if the argument force is False, the workers
+        will stop after all queued tasks are finished. The default is False.
+
+        If `send' is called after this methos is called, it raises
+        DeadPoolError.
 
         If this class is used in with statement, this method is called when the
         block exited. Otherwise, this method must be called after finished
-        using the object.
+        using the object, or the worker threads are left till the program ends.
+        (Or, if the constructor is called with optional argument daemon=False,
+        dead lock occurres and program will never ends.)
 
         This method is thread safe and can be callable many times.
         """
@@ -173,6 +179,13 @@ class Pool(object):
             if self.__is_killed:
                 return
             self.__is_killed = True
+
+        if force:
+            try:
+                while True:
+                    self.__futures.get(block=False)
+            except Queue.Empty:
+                pass
 
         [self.__futures.put(None) for i in xrange(self.__worker_size)]
 
