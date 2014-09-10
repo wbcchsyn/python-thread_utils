@@ -4,12 +4,12 @@
  thread_utils
 ==============
 
-Easy to create and to treat python thread.
+Wrapper of threading module providing Actor interface.
 
-This module provides thread pool class and decorator to make callable run in
-background thread. The caller can access to the result or the exception through
-the future object easily. The finished threads are joined by garbage
-collection.
+This module provides decorator to make function and method run in background
+thread, and thread pool class to pool worker threads. The caller thread can
+retrieve the return value or the unhandled exception in the background thread
+using the future object. The finished threads are joined by garbage collection.
 
 Requirements
 ============
@@ -44,13 +44,13 @@ Setup
 
 Usage
 =====
-This module defines the following functions and class.
+This module defines the following functions and classes.
 
-  thread_utils.async(daemon=True)
+  thread_utils.actor(daemon=True)
 
-    Decorator that creates a worker thread and invokes callable there.
+    Decorator to create a worker thread and to invoke the callable there.
 
-    Decorated callable object returns a Future object immediately and invoked
+    The decorated callable returns a Future object immediately and invoked
     callable starts to run in worker thread. If argument \`daemon\' is True,
     the worker thread will be daemonic; otherwise not. Python program exits
     when only daemon threads are left.
@@ -68,7 +68,7 @@ This module defines the following functions and class.
        import thread_utils
        import time
 
-       @thread_utils.async(daemon=False)
+       @thread_utils.actor(daemon=False)
        def _sleep_print(n):
            time.sleep(n)
            print n
@@ -86,14 +86,14 @@ This module defines the following functions and class.
 
     The decorated callable returns a Future object immediately; it monitors
     invoked callable progress and stores the result. The foreground thread can
-    access to the result of invoked callable through the future object like as
-    follows.
+    retrieve the result of invoked callable through the future object like
+    as follows.
     ::
 
        import thread_utils
        import time
 
-       @thread_utils.async(daemon=True)
+       @thread_utils.actor(daemon=True)
        def add(m, n):
            time.sleep(m)
            return m + n
@@ -113,20 +113,16 @@ This module defines the following functions and class.
 
        class Foo(object):
            @classmethod
-           @thread_utils.async(daemon=False)
+           @thread_utils.actor(daemon=False)
            def foo(cls):
                pass
 
-    This decorator doesn't affect to thread safty, so it depends on the invoked
-    callable whether decorated will be thread safe or not.
+    This decorator doesn't affect to thread safty, so it depends only on the
+    invoked callable whether the decorated will be thread safe or not.
 
-  thread_utils.Pool
+  thread_utils.async(daemon=True)
 
-    A class to pool worker threads and do tasks parallel using them. The worker
-    threads are reused specified times for performance. The progress and the
-    result of invoked callable can be seen through the Future object.
-
-    See `Pool Objects`_ for more detail.
+    Alias to thread_utils.actor
 
   thread_utils.synchronized
 
@@ -194,7 +190,7 @@ Future.receive(timeout=None)
   Block until timeout or invoked callable is finished and returns what the
   callable returned or raises its unhandled exception.
 
-  When argument \`timeout\' is presend and is not None, it shoule be int or
+  When argument \`timeout\' is present and is not None, it shoule be int or
   floating number. This method raises TimeoutError if task won't be finished
   before timeout.
 
@@ -203,19 +199,21 @@ Pool Objects
 
 This class pools worker threads and do tasks parallel using them.
 
+The worker threads are reused many times for the performance.
+
 \`send\' method queues specified callable with the arguments and returns a
 Future object immediately. The returned future object monitors the invoked
 callable progress and stores the result.
 
 class thread_utils.Pool(worker_size=1, loop_count=sys.maxint, daemon=True)
 
-  All the arguments are optional. Argument \`worker_size\' specifies the number
-  of the worker thread. The object can do this number of tasks at the same time
+  All arguments are optional. Argument \`worker_size\' specifies the number of
+  the worker thread. The object can do this number of tasks at the same time
   parallel. Each worker will invoke callable \`loop_count\' times. After that,
   the worker kill itself and a new worker is created.
 
-  If argument \`daemon\' is True, the worker thread will be daemonic, or not.
-  Python program exits when only daemon threads are left.
+  If the argument \`daemon\' is True, the worker threads will be daemonic, or
+  not. Python program exits when only daemon threads are left.
 
   This constructor is thread safe.
 
@@ -224,7 +222,7 @@ class thread_utils.Pool(worker_size=1, loop_count=sys.maxint, daemon=True)
     Queue specified callable with the arguments and returns a Future object.
 
     Argument \`func \' is a callable object invoked by workers, and \*args and
-    \*\*kwargs are arguments passed to it.
+    \*\*kwargs are arguments to be passed to the callable.
 
     The returned Future object monitors the progress of invoked callable and
     stores the result.
@@ -235,24 +233,27 @@ class thread_utils.Pool(worker_size=1, loop_count=sys.maxint, daemon=True)
 
     This method is thread safe.
 
-  Pool.kill(force=False)
+  Pool.kill(force=False, block=False)
 
-    Set internal flag and send terminate signal to all worker threads.
+    Set internal flag and make worker threads stop.
 
-    This method sends kill signal to all workers and return immediately.
+    If the argument \`force\' is True, the workers will stop after their
+    current task is finished. In this case, some tasks could be left undone,
+    and DeadPoolError will be raised if receive method of the future object is
+    called. On the other hand, if the argument \`force\' is False, the workers
+    will do all queued tasks and finish after that. The default value is False.
 
-    If the argument \`force\' is True, the worker will stop after their current
-    task is finished. In this case, some futures could be left undone, and they
-    will raise DeadPoolError when their receive method is called.
+    If the argument \`block\' is True, it blocks until all workers finished
+    their tasks. Otherwise, it returns immediately. The default is False.
 
-    On the other hand, if the argument \`force\' is False, the worker will stop
-    after all queued tasks are finished. The defualt value is False.
+    If this class is used in \`with\' statement, this method is called when
+    block exited with default arguments, i.e. force=False and block=False.
+    Otherwise, this method must be called after finished using the object, or
+    the worker threads will not end till the program ends. (Or, if the workers
+    are daemonic, dead lock occurs and program will never ends.)
 
-    If this class is used in with statement, this method is called when the
-    block exited. Otherwise, this method must be called after finished using
-    the object.
-
-    This method is thread safe and can be called many times.
+    This method is thread safe. If this method is called twice or more than
+    twice, sets the flag only the first time and do noghing after that.
 
   For example, the following program creates pool with worker_size = 3. so
   display 3 messages every seconds. The Pool will be killed soon, but the
