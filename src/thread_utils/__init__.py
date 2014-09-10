@@ -16,7 +16,7 @@ limitations under the License.
 '''
 
 
-from error import TimeoutError, DeadPoolError
+from error import Error, TimeoutError, DeadPoolError
 from synchronized import synchronized
-from async import async
+from async import async, actor
 from pool import Pool

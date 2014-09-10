@@ -119,3 +119,6 @@ def async(daemon=True):
         return wrapper
 
     return decorator
+
+
+actor = async
