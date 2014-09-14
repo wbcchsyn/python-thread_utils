@@ -71,9 +71,6 @@ class TestCreateAndKill(object):
         Pool workers will stop even if some tasks are left when forcely killed.
         """
 
-        # Wait for pre-tested threads are joined
-        time.sleep(TEST_INTERVAL)
-
         p = thread_utils.Pool()
         futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
         p.kill(force=True)
@@ -81,7 +78,42 @@ class TestCreateAndKill(object):
         # skip the first future check because the result is not stable.
         del(futures[0])
 
-        # Check DeadPoolError is raised
+        # Check DeadPoolError is raised.
+        for f in futures:
+            with pytest.raises(thread_utils.DeadPoolError):
+                f.receive()
+
+    def test_kill_blocks_until_workers_died(self):
+        """
+        Pool.kill blocks until all workers finish the task if argument block
+        is True.
+        """
+
+        p = thread_utils.Pool()
+        futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
+        p.kill(block=True)
+
+        # Check all tasks are finished.
+        for f in futures:
+            assert f.is_finished()
+
+    def test_kill_forcely_and_block(self):
+        """
+        Test both force and block arguments are True
+        """
+
+        p = thread_utils.Pool()
+        futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
+
+        # Make sure the worker starts.
+        time.sleep(TEST_INTERVAL / 2)
+        p.kill(force=True, block=True)
+
+        # The first task is finished.
+        assert futures[0].is_finished()
+        del(futures[0])
+
+        # Check DeadPoolError is raised.
         for f in futures:
             with pytest.raises(thread_utils.DeadPoolError):
                 f.receive()

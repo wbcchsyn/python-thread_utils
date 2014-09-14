@@ -39,7 +39,7 @@ class Pool(object):
     """
 
     __slots__ = ('__worker_size', '__loop_count', '__daemon', '__futures',
-                 '__lock', '__is_killed',)
+                 '__lock', '__is_killed', '__worker_finished',)
 
     def __init__(self, worker_size=1, loop_count=sys.maxint, daemon=True):
         """
@@ -80,6 +80,9 @@ class Pool(object):
         self.__lock = threading.Lock()
         self.__is_killed = False
 
+        self.__worker_finished = threading.Event()
+        self.__worker_finished.clear()
+
         for i in xrange(worker_size):
             self.__create_worker()
 
@@ -93,6 +96,9 @@ class Pool(object):
             for i in xrange(self.__loop_count):
                 future = self.__futures.get(block=True)
                 if future is None:
+                    self.__worker_size -= 1
+                    if self.__worker_size == 0:
+                        self.__worker_finished.set()
                     return
                 future._run()
 
@@ -153,19 +159,19 @@ class Pool(object):
 
         return future
 
-    def kill(self, force=False):
+    def kill(self, force=False, block=False):
         """
-        Set internal flag and send terminate signal to all worker threads.
-
-        This method sends kill signal to all workers and return immediately.
+        Set internal flag and make workers stop.
 
         If the argument force is True, the workers will stop after their
         current task is finished. In this case, some futures could be left
         undone, and they will raise DeadPoolError when their receive method
-        is called.
+        is called. On the other hand, if the argument force is False, the
+        workers will stop after all queued tasks are finished. The default is
+        value False.
 
-        On the other hand, if the argument force is False, the workers will
-        stop after all queued tasks are finished. The default is value False.
+        If the argument block is True, block until the all workers done the
+        tasks. Otherwise, it returns immediately. The default value is False.
 
         If `send' is called after this methos is called, it raises
         DeadPoolError.
@@ -180,9 +186,8 @@ class Pool(object):
         """
 
         with self.__lock:
-            if self.__is_killed:
-                return
-            self.__is_killed = True
+            if not self.__is_killed:
+                self.__is_killed = True
 
         if force:
             while not self.__futures.empty():
@@ -194,6 +199,9 @@ class Pool(object):
 
         for i in xrange(self.__worker_size):
             self.__futures.put(None)
+
+        if block:
+            self.__worker_finished.wait()
 
     def __del__(self):
         self.kill()
