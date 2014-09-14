@@ -29,6 +29,7 @@ classifiers = [
     "Programming Language :: Python :: 2.6",
     "Programming Language :: Python :: 2.7",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.1",
     "Programming Language :: Python :: 3.2",
     "Programming Language :: Python :: 3.3",
     "Programming Language :: Python :: 3.4",
@@ -41,8 +42,8 @@ requires = []
 
 setup(
     name='thread_utils',
-    version="0.1.1",
-    description='Thread Utilities for python.',
+    version="0.1.2",
+    description='Wrapper of threading module providing Actor interface.',
     long_description=long_description,
     url="https://github.com/wbcchsyn/python-thread_utils",
     author='Yoshida Shin',
