@@ -16,7 +16,7 @@ limitations under the License.
 '''
 
 
-import Queue
+import collections
 import threading
 import operator
 import sys
@@ -39,7 +39,7 @@ class Pool(object):
     """
 
     __slots__ = ('__worker_size', '__loop_count', '__daemon', '__futures',
-                 '__lock', '__is_killed', '__worker_finished',)
+                 '__lock', '__is_killed', '__queue_size',)
 
     def __init__(self, worker_size=1, loop_count=sys.maxint, daemon=True):
         """
@@ -71,17 +71,18 @@ class Pool(object):
             raise ValueError("The argument 3 'loop_count' is requested to be 1"
                              " or larger than 1.")
 
-        # main
-        self.__worker_size = worker_size
+        # Immutable variables
         self.__loop_count = loop_count
         self.__daemon = operator.truth(daemon)
 
-        self.__futures = Queue.Queue()
-        self.__lock = threading.Lock()
-        self.__is_killed = False
+        # Lock
+        self.__lock = threading.Condition(threading.Lock())
 
-        self.__worker_finished = threading.Event()
-        self.__worker_finished.clear()
+        # Mutable variables
+        self.__is_killed = False
+        self.__worker_size = worker_size
+        self.__futures = collections.deque()
+        self.__queue_size = 0
 
         for i in xrange(worker_size):
             self.__create_worker()
@@ -94,13 +95,27 @@ class Pool(object):
     def __run(self):
         try:
             for i in xrange(self.__loop_count):
-                future = self.__futures.get(block=True)
-                if future is None:
-                    self.__worker_size -= 1
-                    if self.__worker_size == 0:
-                        self.__worker_finished.set()
-                    return
-                future._run()
+                future = None
+
+                self.__lock.acquire()
+                try:
+                    while self.__queue_size == 0 and not self.__is_killed:
+                        self.__lock.wait()
+
+                    if self.__queue_size == 0 and self.__is_killed:
+                        self.__worker_size -= 1
+                        self.__lock.notify()
+                        return
+
+                    future = self.__futures.popleft()
+                    self.__queue_size -= 1
+                    self.__lock.notify()
+
+                finally:
+                    self.__lock.release()
+
+                if future is not None:
+                    future._run()
 
             else:
                 self.__create_worker()
@@ -152,10 +167,16 @@ class Pool(object):
                             "callable.")
 
         future = _future.Future(func, *args, **kwargs)
-        with self.__lock:
+        self.__lock.acquire()
+        try:
             if self.__is_killed:
                 raise error.DeadPoolError("Pool.send is called after killed.")
-            self.__futures.put(future)
+            self.__futures.append(future)
+            self.__queue_size += 1
+            self.__lock.notify()
+
+        finally:
+            self.__lock.release()
 
         return future
 
@@ -185,23 +206,30 @@ class Pool(object):
         This method is thread safe and can be callable many times.
         """
 
-        with self.__lock:
-            if not self.__is_killed:
-                self.__is_killed = True
+        self.__lock.acquire()
+        try:
+            if self.__is_killed:
+                return
 
-        if force:
-            while not self.__futures.empty():
-                f = self.__futures.get(block=False)
-                f._is_error = True
-                f._result = error.DeadPoolError("The pool is killed before the"
-                                                " task is done.")
-                f._is_finished.set()
+            self.__is_killed = True
 
-        for i in xrange(self.__worker_size):
-            self.__futures.put(None)
+            if force:
+                for f in self.__futures:
+                    f._is_error = True
+                    f._result = error.DeadPoolError("The pool is killed"
+                                                    " before the task is "
+                                                    "done.")
+                    f._is_finished.set()
 
-        if block:
-            self.__worker_finished.wait()
+                self.__queue_size = 0
+
+            if block:
+                while self.__worker_size > 0:
+                    self.__lock.wait()
+
+        finally:
+            self.__lock.notify_all()
+            self.__lock.release()
 
     def __del__(self):
         self.kill()
