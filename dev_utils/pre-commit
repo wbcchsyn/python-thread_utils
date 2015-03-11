@@ -23,7 +23,7 @@ which doc8 >/dev/null
 
 (
     cd $(git rev-parse --show-toplevel)
-    pep8 src
+    pep8 --ignore E402 src
     find src -name '*.py' -a ! -name '__init__.py' | xargs pyflakes
     py.test src
     doc8 docs
