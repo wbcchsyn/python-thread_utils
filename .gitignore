@@ -3,3 +3,7 @@
 *~
 *.pyc
 */__pycache__/*
+/.cache/
+.coverage
+/.tox/
+/src/thread_utils.egg-info/
