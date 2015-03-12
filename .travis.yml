@@ -1,0 +1,26 @@
+language: python
+python:
+  - "2.6"
+  - "2.7"
+  - "3.1"
+  - "3.2"
+  - "3.3"
+  - "3.4"
+
+install:
+  - pip install pytest-cov pytest-pep8 pytest-flakes doc8 pylint
+
+script:
+  - py.test src
+  - py.test --flakes src
+  - py.test --pep8 src
+  - python setup.py check -r
+  - doc8 docs
+  - pylint --rcfile=.pylint -E src/thread_utils
+
+notifications:
+    email:
+      recipients:
+        - wbcchsyn@gmail.com
+      on_success: change
+      on_failure: always
