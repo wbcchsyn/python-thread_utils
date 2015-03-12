@@ -117,8 +117,7 @@ class Pool(object):
 
                 future._run()
 
-            else:
-                self.__create_worker()
+            self.__create_worker()
 
         finally:
             _gc._put(threading.current_thread())

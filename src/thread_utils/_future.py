@@ -42,6 +42,7 @@ class Future(object):
         self.__args = args
         self.__kwargs = kwargs
         self.__is_error = None
+        self.__result = None
 
     def _run(self):
         try:
@@ -72,8 +73,9 @@ class Future(object):
         finally:
             self.__lock.release()
 
+    # pylint: disable=E0702
     def receive(self, timeout=None):
-        """
+        r"""
         Block until timeout or invoked callable is finished and returns what
         the callable returned or raises its unhandled exception.
 
