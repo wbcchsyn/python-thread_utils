@@ -89,19 +89,18 @@ class Future(object):
         self.__lock.acquire()
         try:
             if self.__is_error is None:
-                self.__lock.wait(timeout)
+                try:
+                    self.__lock.wait(timeout)
+                except Exception:
+                    pass
 
-        except Exception:
-            pass
+                if self.__is_error is None:
+                    raise error.TimeoutError
 
         finally:
             self.__lock.release()
 
-        if self.__is_error is None:
-            raise error.TimeoutError
-
-        elif self.__is_error:
+        if self.__is_error:
             raise self.__result
-
         else:
             return self.__result
