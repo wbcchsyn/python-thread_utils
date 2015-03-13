@@ -153,31 +153,31 @@ class PoolFuture(Future):
     def is_finished(self):
         ''' Override '''
 
-        self.__lock.acquire()
-        try:
-            return self.__is_error is not None
-        finally:
-            self.__lock.release()
+        # Expect for GIL.
+        return self.__is_error is not None
 
     # pylint: disable=E0702
     def receive(self, timeout=None):
         ''' Override '''
 
-        self.__lock.acquire()
-        try:
-            if self.__is_error is None:
-                self.__lock.wait(timeout)
-
-        except Exception:
-            pass
-
-        finally:
-            self.__lock.release()
-
+        # Expect for GIL.
         if self.__is_error is None:
-            raise error.TimeoutError
 
-        elif self.__is_error:
+            # Lock and check again before waiting.
+            self.__lock.acquire()
+            try:
+                if self.__is_error is None:
+                    self.__lock.wait(timeout)
+            except Exception:
+                pass
+            finally:
+                self.__lock.release()
+
+            # Check again (expect for GIL.)
+            if self.__is_error is None:
+                raise error.TimeoutError
+
+        if self.__is_error:
             raise self.__result
 
         else:
