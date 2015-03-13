@@ -14,7 +14,7 @@ using the future object. The finished threads are joined by garbage collection.
 Requirements
 ============
 
-* Python 2.6 or 2.7 or 3.x
+* Python 2.6 or 2.7 or 3.2 or later.
 * Unix or Linux platforms which support python thread module.
 
 Tested
@@ -22,7 +22,6 @@ Tested
 
 * 2.6.9
 * 2.7.9
-* 3.1.5
 * 3.2.6
 * 3.3.6
 * 3.4.2
