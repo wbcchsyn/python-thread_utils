@@ -19,7 +19,6 @@ limitations under the License.
 import functools
 import operator
 
-import _gc
 import _future
 
 

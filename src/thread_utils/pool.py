@@ -213,10 +213,11 @@ class Pool(object):
 
             if force:
                 for f in self.__futures:
-                    f._set_result(error.DeadPoolError("The pool is killed"
-                                                      " before the task is"
-                                                      " done"),
-                                  True)
+                    f._set_result(
+                        error.DeadPoolError("The pool is killed before the"
+                                            " task is done."),
+                        True
+                    )
 
                 self.__queue_size = 0
 
