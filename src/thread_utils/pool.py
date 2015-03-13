@@ -165,7 +165,7 @@ class Pool(object):
             raise TypeError("The argument 2 'func' is requested to be "
                             "callable.")
 
-        future = _future.Future(func, *args, **kwargs)
+        future = _future.PoolFuture(func, *args, **kwargs)
         self.__lock.acquire()
         try:
             if self.__is_killed:

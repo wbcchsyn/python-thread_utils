@@ -16,7 +16,6 @@ limitations under the License.
 '''
 
 
-import threading
 import functools
 import operator
 
@@ -90,8 +89,6 @@ def async(daemon=True):
     callable whether decorated will be thread safe or not.
     """
 
-    daemon = operator.truth(daemon)
-
     def decorator(func):
 
         # Argument Check
@@ -99,22 +96,11 @@ def async(daemon=True):
             raise TypeError("The 1st argument 'func' is requested "
                             "to be callable.")
 
-        def run(future):
-            try:
-                future._run()
-            finally:
-                _gc._put(threading.current_thread())
-
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
 
-            future = _future.Future(func, *args, **kwargs)
-
-            t = threading.Thread(target=run, args=(future,))
-            t.daemon = daemon
-            t.start()
-
-            return future
+            return _future.AsyncFuture(func, operator.truth(daemon), *args,
+                                       **kwargs)
 
         return wrapper
 
