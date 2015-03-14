@@ -1,0 +1,28 @@
+language: python
+python:
+  - "2.6"
+  - "2.7"
+  - "3.2"
+  - "3.3"
+  - "3.4"
+
+install:
+  - pip install pytest-cov pytest-pep8 pytest-flakes doc8 pylint
+
+before_script:
+  - if python -V 2>&1| grep 'Python 3'; then for f in $(find src -name '*.py'); do 2to3 $f | patch $f; done; else true; fi
+
+script:
+  - py.test src
+  - py.test --flakes src
+  - py.test --pep8 src
+  - if python -V 2>&1 | grep 'Python 2.6'; then true; else python setup.py check -r; fi
+  - if python -V 2>&1 | grep 'Python 2.7'; then doc8 docs; else true; fi
+  - if python -V 2>&1 | grep 'Python 2.7'; then pylint --rcfile=.pylint -E src/thread_utils; else true; fi
+
+notifications:
+    email:
+      recipients:
+        - wbcchsyn@gmail.com
+      on_success: change
+      on_failure: always

@@ -105,19 +105,20 @@ class Pool(object):
 
                     if self.__queue_size == 0 and self.__is_killed:
                         self.__worker_size -= 1
-                        if self.__worker_size == 0:
-                            self.__condition.notify()
+                        self.__condition.notify()
                         return
 
                     future = self.__futures.popleft()
                     self.__queue_size -= 1
+                    self.__condition.notify()
 
                 finally:
                     self.__lock.release()
 
                 future._run()
 
-            self.__create_worker()
+            else:
+                self.__create_worker()
 
         finally:
             _gc._put(threading.current_thread())
@@ -165,7 +166,7 @@ class Pool(object):
             raise TypeError("The argument 2 'func' is requested to be "
                             "callable.")
 
-        future = _future.PoolFuture(func, *args, **kwargs)
+        future = _future.Future(func, *args, **kwargs)
         self.__lock.acquire()
         try:
             if self.__is_killed:
@@ -210,15 +211,13 @@ class Pool(object):
                 return
 
             self.__is_killed = True
-            self.__condition.notify_all()
 
             if force:
                 for f in self.__futures:
-                    f._set_result(
-                        error.DeadPoolError("The pool is killed before the"
-                                            " task is done."),
-                        True
-                    )
+                    f._set_result(error.DeadPoolError("The pool is killed"
+                                                      " before the task is"
+                                                      " done"),
+                                  True)
 
                 self.__queue_size = 0
 
@@ -227,6 +226,7 @@ class Pool(object):
                     self.__condition.wait()
 
         finally:
+            self.__condition.notify_all()
             self.__lock.release()
 
     def __del__(self):

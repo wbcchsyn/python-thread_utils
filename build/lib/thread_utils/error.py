@@ -16,25 +16,13 @@ limitations under the License.
 '''
 
 
-import Queue
-import threading
+class Error(Exception):
+    pass
 
 
-__TERMINATED = Queue.Queue()
+class TimeoutError(Error):
+    pass
 
 
-def __gc():
-    try:
-        while True:
-            __TERMINATED.get().join()
-    except:
-        # Daemon thread seldom raises error at exit in some conditions in
-        # python 2.6.
-        pass
-
-
-_put = __TERMINATED.put
-__GC = threading.Thread(target=__gc)
-__GC.daemon = True
-__GC.name = "Garbage Collector."
-__GC.start()
+class DeadPoolError(Error):
+    pass

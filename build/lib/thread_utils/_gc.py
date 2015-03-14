@@ -21,6 +21,8 @@ import threading
 
 
 __TERMINATED = Queue.Queue()
+__GC = None  # GC thread
+__LOCK = threading.Lock()  # Lock to start GC thread safely.
 
 
 def __gc():
@@ -33,8 +35,14 @@ def __gc():
         pass
 
 
-_put = __TERMINATED.put
-__GC = threading.Thread(target=__gc)
-__GC.daemon = True
-__GC.name = "Garbage Collector."
-__GC.start()
+def _put(thread):
+    __TERMINATED.put(thread)
+
+
+# Run only when this module is imported first time.
+with __LOCK:
+    if __GC is None:
+        __GC = threading.Thread(target=__gc)
+        __GC.daemon = True
+        __GC.name = "Garbage Collector."
+        __GC.start()

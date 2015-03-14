@@ -17,53 +17,38 @@ limitations under the License.
 
 
 import threading
+from abc import ABCMeta, abstractmethod
 
 import error
+import _gc
 
 
-class Future(object):
+class Future:
     """
-    This class monitors associated callable progress and stores its return
-    value or unhandled exception. Future.is_finished() returns whether the
-    invoked callable is finished or not. Future.receive(timeout=None) blocks
-    until timeout or invoked callable is finished and returns what the callable
-    returns or raises its unhandled exception.
+    This is an abstract class to monitor associated callable progress and to
+    store its return value or unhandled exception. Future.is_finished() returns
+    whether the invoked callable is finished or not.
+    Future.receive(timeout=None) blocks until timeout or invoked callable is
+    finished and returns what the callable returns or raises its unhandled
+    exception.
 
     The instance will be created by thread_utils.Pool.send method or callable
     decorated by thread_utils.async.
     """
 
-    __slots__ = ('_result', '_is_error', '_is_finished', '__func', '__args',
-                 '__kwargs')
+    __metaclass__ = ABCMeta
 
-    def __init__(self, func, *args, **kwargs):
-        self._is_finished = threading.Event()
-        self._is_finished.clear()
-        self.__func = func
-        self.__args = args
-        self.__kwargs = kwargs
-
-    def _run(self):
-        try:
-            self._result = self.__func(*self.__args, **self.__kwargs)
-            self._is_error = False
-
-        except BaseException as e:
-            self._result = e
-            self._is_error = True
-
-        finally:
-            self._is_finished.set()
-
+    @abstractmethod
     def is_finished(self):
         """
         Return True if invoked callable is finished. Otherwise, return False.
         """
 
-        return self._is_finished.is_set()
+        raise RuntimeError("Abstract method is called.")
 
+    @abstractmethod
     def receive(self, timeout=None):
-        """
+        r"""
         Block until timeout or invoked callable is finished and returns what
         the callable returned or raises its unhandled exception.
 
@@ -76,12 +61,127 @@ class Future(object):
         finished before timeout.
         """
 
-        self._is_finished.wait(timeout)
+        raise RuntimeError("Abstract method is called.")
 
-        if not self.is_finished():
+
+class AsyncFuture(Future):
+    """
+    Implement of Future class.
+
+    The instance will be created by callable decorated by thread_utils.async.
+    """
+
+    __slots__ = ('__worker', '__func', '__result', '__is_error')
+
+    def __init__(self, func, daemon, *args, **kwargs):
+        self.__func = func
+        self.__result = None
+        self.__is_error = None
+
+        self.__worker = threading.Thread(target=self.__run, args=args,
+                                         kwargs=kwargs)
+        self.__worker.daemon = daemon
+        self.__worker.start()
+
+    def __run(self, *args, **kwargs):
+        try:
+            self.__result = self.__func(*args, **kwargs)
+            self.__is_error = False
+        except BaseException as e:
+            self.__result = e
+            self.__is_error = True
+        finally:
+            _gc._put(threading.current_thread())
+
+    def is_finished(self):
+        ''' Override '''
+
+        return not self.__worker.is_alive()
+
+    # pylint: disable=E0702
+    def receive(self, timeout=None):
+        ''' Override '''
+
+        self.__worker.join(timeout)
+
+        if self.__worker.is_alive():
             raise error.TimeoutError
-
-        if self._is_error:
-            raise self._result
+        elif self.__is_error:
+            raise self.__result
         else:
-            return self._result
+            return self.__result
+
+
+Future.register(AsyncFuture)
+
+
+class PoolFuture(Future):
+    """
+    Implement of Future class.
+
+    The instance will be created by thread_utils.Pool.send method.
+    """
+
+    __slots__ = ('__result', '__is_error', '__func', '__args', '__kwargs',
+                 '__lock',)
+
+    def __init__(self, func, *args, **kwargs):
+        self.__lock = threading.Condition(threading.Lock())
+        self.__func = func
+        self.__args = args
+        self.__kwargs = kwargs
+        self.__is_error = None
+        self.__result = None
+
+    def _run(self):
+        try:
+            self._set_result(self.__func(*self.__args, **self.__kwargs), False)
+
+        except BaseException as e:
+            self._set_result(e, True)
+
+    def _set_result(self, result, is_error):
+        self.__lock.acquire()
+        try:
+            self.__is_error = is_error
+            self.__result = result
+
+        finally:
+            self.__lock.notify_all()
+            self.__lock.release()
+
+    def is_finished(self):
+        ''' Override '''
+
+        # Expect for GIL.
+        return self.__is_error is not None
+
+    # pylint: disable=E0702
+    def receive(self, timeout=None):
+        ''' Override '''
+
+        # Expect for GIL.
+        if self.__is_error is None:
+
+            # Lock and check again before waiting.
+            self.__lock.acquire()
+            try:
+                if self.__is_error is None:
+                    self.__lock.wait(timeout)
+            except Exception:
+                pass
+            finally:
+                self.__lock.release()
+
+            # Check again (expect for GIL.)
+            if self.__is_error is None:
+                raise error.TimeoutError
+
+        if self.__is_error:
+            raise self.__result
+
+        else:
+            return self.__result
+
+
+Future.register(PoolFuture)
