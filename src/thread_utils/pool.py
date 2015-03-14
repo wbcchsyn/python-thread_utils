@@ -105,12 +105,12 @@ class Pool(object):
 
                     if self.__queue_size == 0 and self.__is_killed:
                         self.__worker_size -= 1
-                        self.__condition.notify()
+                        if self.__worker_size == 0:
+                            self.__condition.notify()
                         return
 
                     future = self.__futures.popleft()
                     self.__queue_size -= 1
-                    self.__condition.notify()
 
                 finally:
                     self.__lock.release()
