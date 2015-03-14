@@ -18,7 +18,7 @@ limitations under the License.
 
 from setuptools import setup, find_packages
 
-long_description = open("docs/README.rst").read()
+long_description = open("README.rst").read() + open("docs/CHANGELOG.rst").read()
 
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -42,7 +42,7 @@ requires = []
 
 setup(
     name='thread_utils',
-    version="0.1.2",
+    version="0.1.3",
     description='Wrapper of threading module providing Actor interface.',
     long_description=long_description,
     url="https://github.com/wbcchsyn/python-thread_utils",
