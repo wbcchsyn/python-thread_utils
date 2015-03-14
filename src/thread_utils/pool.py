@@ -210,6 +210,7 @@ class Pool(object):
                 return
 
             self.__is_killed = True
+            self.__condition.notify_all()
 
             if force:
                 for f in self.__futures:
@@ -226,7 +227,6 @@ class Pool(object):
                     self.__condition.wait()
 
         finally:
-            self.__condition.notify_all()
             self.__lock.release()
 
     def __del__(self):
