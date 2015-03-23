@@ -39,7 +39,7 @@ class Pool(object):
     """
 
     __slots__ = ('__worker_size', '__loop_count', '__daemon', '__futures',
-                 '__lock', '__condition', '__is_killed', '__queue_size',)
+                 '__lock', '__is_killed', '__queue_size',)
 
     def __init__(self, worker_size=1, loop_count=sys.maxint, daemon=True):
         """
@@ -76,8 +76,7 @@ class Pool(object):
         self.__daemon = operator.truth(daemon)
 
         # Lock
-        self.__lock = threading.Lock()
-        self.__condition = threading.Condition(self.__lock)
+        self.__lock = threading.Condition(threading.Lock())
 
         # Mutable variables
         self.__is_killed = False
@@ -101,12 +100,12 @@ class Pool(object):
                 self.__lock.acquire()
                 try:
                     while self.__queue_size == 0 and not self.__is_killed:
-                        self.__condition.wait()
+                        self.__lock.wait()
 
                     if self.__queue_size == 0 and self.__is_killed:
                         self.__worker_size -= 1
                         if self.__worker_size == 0:
-                            self.__condition.notify()
+                            self.__lock.notify()
                         return
 
                     future = self.__futures.popleft()
@@ -172,7 +171,7 @@ class Pool(object):
                 raise error.DeadPoolError("Pool.send is called after killed.")
             self.__futures.append(future)
             self.__queue_size += 1
-            self.__condition.notify()
+            self.__lock.notify()
         finally:
             self.__lock.release()
 
@@ -210,7 +209,7 @@ class Pool(object):
                 return
 
             self.__is_killed = True
-            self.__condition.notify_all()
+            self.__lock.notify_all()
 
             if force:
                 for f in self.__futures:
@@ -224,7 +223,7 @@ class Pool(object):
 
             if block:
                 while self.__worker_size > 0:
-                    self.__condition.wait()
+                    self.__lock.wait()
 
         finally:
             self.__lock.release()
