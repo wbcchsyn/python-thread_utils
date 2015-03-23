@@ -39,7 +39,7 @@ class Pool(object):
     """
 
     __slots__ = ('__worker_size', '__loop_count', '__daemon', '__futures',
-                 '__lock', '__is_killed', '__queue_size',)
+                 '__lock', '__is_killed', '__queue_size', '__workings')
 
     def __init__(self, worker_size=1, loop_count=sys.maxint, daemon=True):
         """
@@ -60,9 +60,9 @@ class Pool(object):
         if not isinstance(worker_size, int):
             raise TypeError("The argument 2 'worker_size' is requested "
                             "to be int.")
-        if worker_size < 1:
-            raise ValueError("The argument 2 'worker_size' is requested 1 or "
-                             "larger than 1.")
+        if worker_size < 0:
+            raise ValueError("The argument 2 'worker_size' is requested 0 or "
+                             "larger than 0.")
 
         if not isinstance(loop_count, int):
             raise TypeError("The argument 3 'loop_count' is requested "
@@ -83,6 +83,7 @@ class Pool(object):
         self.__worker_size = worker_size
         self.__futures = collections.deque()
         self.__queue_size = 0
+        self.__workings = 0
 
         for i in xrange(worker_size):
             self.__create_worker()
@@ -114,7 +115,9 @@ class Pool(object):
                 finally:
                     self.__lock.release()
 
+                self.__workings += 1
                 future._run()
+                self.__workings -= 1
 
             self.__create_worker()
 
@@ -227,6 +230,16 @@ class Pool(object):
 
         finally:
             self.__lock.release()
+
+    def inspect(self):
+        '''
+        Return tuple which indicate the instance status.
+
+        The return value is a tuple of 3 ints. the format is as follows.
+        (worker size, tasks currently being done, queued undone tasks)
+        '''
+
+        return (self.__worker_size, self.__workings, self.__queue_size,)
 
     def __del__(self):
         self.kill()

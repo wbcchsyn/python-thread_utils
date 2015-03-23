@@ -118,6 +118,32 @@ class TestCreateAndKill(object):
             with pytest.raises(thread_utils.DeadPoolError):
                 f.receive()
 
+    def test_inspect(self):
+        '''
+        Test inspect returns the right answer.
+        '''
+
+        p = thread_utils.Pool(worker_size=0)
+
+        for i in range(SIZE):
+            assert p.inspect() == (0, 0, i)
+            p.send(lambda: None)
+
+        p.kill(force=True)
+        p.inspect() == (0, 0, 0)
+
+        p = thread_utils.Pool(worker_size=1)
+        for i in range(SIZE):
+            p.send(time.sleep, TEST_INTERVAL)
+
+        time.sleep(TEST_INTERVAL / 2)
+        assert p.inspect() == (1, 1, SIZE - 1)
+        time.sleep(TEST_INTERVAL)
+        assert p.inspect() == (1, 1, SIZE - 2)
+
+        p.kill()
+        assert p.inspect() == (1, 1, SIZE - 2)
+
 
 class TestReceiveWhatTaskReturned(object):
     """
