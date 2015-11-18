@@ -7,3 +7,4 @@
 .coverage
 /.tox/
 /src/thread_utils.egg-info/
+/bild/
