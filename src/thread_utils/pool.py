@@ -89,10 +89,8 @@ class Pool(object):
     def __run(self):
         try:
             while True:
-                future = None
-
-                self.__lock.acquire()
                 try:
+                    self.__lock.acquire()
                     while self.__queue_size == 0 and not self.__is_killed:
                         self.__lock.wait()
 
@@ -102,12 +100,17 @@ class Pool(object):
                     future = self.__futures.popleft()
                     self.__queue_size -= 1
 
+                    self.__workings += 1
+
+                    # Release lock only when doing task.
+                    self.__lock.release()
+                    future._run()
+                    self.__lock.acquire()
+
+                    self.__workings -= 1
+
                 finally:
                     self.__lock.release()
-
-                self.__workings += 1
-                future._run()
-                self.__workings -= 1
 
         finally:
             with self.__lock:
@@ -159,18 +162,15 @@ class Pool(object):
             raise TypeError("The argument 2 'func' is requested to be "
                             "callable.")
 
-        future = _future.PoolFuture(func, *args, **kwargs)
-        self.__lock.acquire()
-        try:
+        with self.__lock:
             if self.__is_killed:
                 raise error.DeadPoolError("Pool.send is called after killed.")
+
+            future = _future.PoolFuture(func, *args, **kwargs)
             self.__futures.append(future)
             self.__queue_size += 1
             self.__lock.notify()
-        finally:
-            self.__lock.release()
-
-        return future
+            return future
 
     def kill(self, force=False, block=False):
         """

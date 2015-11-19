@@ -95,7 +95,6 @@ class TestCreateAndKill(object):
             with pytest.raises(thread_utils.DeadPoolError):
                 f.receive()
 
-
     def test_kill_blocks_until_workers_died(self):
         """
         Pool.kill blocks until all workers finish the task if argument block
