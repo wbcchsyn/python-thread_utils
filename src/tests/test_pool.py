@@ -218,6 +218,45 @@ class TestCreateAndKill(object):
         p.cancel()
         assert p.inspect()[2] == 0
 
+    def test_set_worker_size(self):
+        '''
+        Worker size can be changed after created.
+        '''
+
+        p = thread_utils.Pool(worker_size=0)
+        for i in range(SIZE):
+            p.send(lambda: None)
+        assert p.inspect() == (0, 0, SIZE)
+
+        # The worker size can be changed.
+        p.set_worker_size(1)
+        assert p.inspect()[0] == 1
+
+        # The worker size can be changed many times.
+        p.set_worker_size(2)
+        assert p.inspect()[0] == 2
+
+        # Tasks are finished now that worker_size > 0
+        p.kill(block=True)
+
+        p = thread_utils.Pool(worker_size=0)
+        assert p.inspect() == (0, 0, 0)
+        p.set_worker_size(3)
+        assert p.inspect() == (3, 0, 0)
+
+        # worker_size can be reduced
+        p.set_worker_size(0)
+        assert p.inspect() == (0, 0, 0)
+
+        for i in range(SIZE):
+            p.send(lambda: None)
+        p.inspect() == (0, 0, SIZE)
+
+        # undone task is not reduced because no worker is.
+        time.sleep(TEST_INTERVAL)
+        p.inspect() == (0, 0, SIZE)
+
+        p.kill(force=True)
 
 
 class TestReceiveWhatTaskReturned(object):
@@ -384,6 +423,13 @@ class TestReceiveExceptionTaskRaised(object):
         with pytest.raises(thread_utils.CancelError):
             futures[-1].receive()
 
+        # Make sure all tasks are canceled or finished.
+        for f in futures:
+            try:
+                f.receive()
+            except thread_utils.CancelError:
+                pass
+
         # Pool.send works well after canceled.
         futures = [self.p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
 
@@ -396,6 +442,7 @@ class TestReceiveExceptionTaskRaised(object):
         # The last tasks will raise CancelError.
         with pytest.raises(thread_utils.CancelError):
             futures[-1].receive()
+
 
 def test_receive_raises_TimeoutError_if_task_do_not_finish_before_timeout():
     """

@@ -19,7 +19,6 @@ limitations under the License.
 import collections
 import threading
 import operator
-import sys
 
 import _future
 import _gc
@@ -65,13 +64,13 @@ class Pool(object):
 
         # Immutable variables
         self.__daemon = operator.truth(daemon)
-        self.__worker_size = worker_size
 
         # Lock
         self.__lock = threading.Condition(threading.Lock())
 
         # Mutable variables
         self.__is_killed = False
+        self.__worker_size = worker_size
         self.__current_workers = 0
         self.__futures = collections.deque()
         self.__queue_size = 0
@@ -91,15 +90,14 @@ class Pool(object):
             while True:
                 try:
                     self.__lock.acquire()
-                    while self.__queue_size == 0 and not self.__is_killed:
+                    while not self.__futures:
                         self.__lock.wait()
 
-                    if self.__queue_size == 0 and self.__is_killed:
+                    future = self.__futures.popleft()
+                    if future is None:
                         return
 
-                    future = self.__futures.popleft()
                     self.__queue_size -= 1
-
                     self.__workings += 1
 
                     # Release lock only when doing task.
@@ -198,20 +196,19 @@ class Pool(object):
         This method is thread safe and can be callable many times.
         """
 
-        self.__lock.acquire()
-        try:
+        with self.__lock:
             self.__is_killed = True
-            self.__lock.notify_all()
 
             if force:
                 self.__cancel()
 
+            for i in xrange(self.__worker_size):
+                self.__futures.append(None)
+            self.__lock.notify_all()
+
             if block:
                 while self.__current_workers > 0:
                     self.__lock.wait()
-
-        finally:
-            self.__lock.release()
 
     def inspect(self):
         '''
@@ -228,14 +225,35 @@ class Pool(object):
             self.__cancel()
 
     def __cancel(self):
-        while self.__futures:
-            f = self.__futures.pop()
-            f._set_result(
+        count = len(self.__futures)
+        for i in xrange(count):
+
+            f = self.__futures.popleft()
+            if f is None:
+                self.__futures.append(None)
+
+            else:
+                f._set_result(
                     error.CancelError("This task was canceled before done."),
                     True
-                    )
+                )
+                self.__queue_size -= 1
 
-        self.__queue_size = 0
+    def set_worker_size(self, worker_size):
+        with self.__lock:
+            if self.__is_killed:
+                raise error.DeadPoolError("Pool.set_worker_size is called "
+                                          "after killed.")
+
+            while self.__worker_size < worker_size:
+                self.__create_worker()
+                self.__worker_size += 1
+
+            while worker_size < self.__worker_size:
+                self.__futures.appendleft(None)
+                self.__worker_size -= 1
+
+            self.__lock.notify_all()
 
     def __del__(self):
         self.kill()
