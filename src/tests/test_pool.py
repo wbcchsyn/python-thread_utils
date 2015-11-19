@@ -46,10 +46,10 @@ class TestCreateAndKill(object):
         initial_count = threading.active_count()
         p = thread_utils.Pool(SIZE)
         assert threading.active_count() == initial_count + SIZE
+        assert p.inspect() == (SIZE, 0, 0,)
 
-        p.kill()
-
-        # Wait for all threads are killed.
+        # Make sure all workers are joined
+        p.kill(block=True)
         time.sleep(TEST_INTERVAL)
         assert threading.active_count() == initial_count
 
@@ -65,6 +65,7 @@ class TestCreateAndKill(object):
 
         # Check no timeout error occurres.
         [f.receive(timeout=TEST_INTERVAL * 10) for f in futures]
+        assert p.inspect() == (1, 0, 0,)
 
     def test_workers_stop_before_all_task_done_when_force_kill(self):
         """
@@ -83,6 +84,18 @@ class TestCreateAndKill(object):
             with pytest.raises(thread_utils.DeadPoolError):
                 f.receive()
 
+        # If worker_size is 0, all features raise DeadPoolError
+        p = thread_utils.Pool(worker_size=0)
+        futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
+        assert p.inspect() == (0, 0, SIZE,)
+        p.kill(force=True)
+
+        # Check DeadPoolError is raised.
+        for f in futures:
+            with pytest.raises(thread_utils.DeadPoolError):
+                f.receive()
+
+
     def test_kill_blocks_until_workers_died(self):
         """
         Pool.kill blocks until all workers finish the task if argument block
@@ -91,7 +104,9 @@ class TestCreateAndKill(object):
 
         p = thread_utils.Pool()
         futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
+        assert p.inspect()[2] > 0
         p.kill(block=True)
+        assert p.inspect() == (1, 0, 0,)
 
         # Check all tasks are finished.
         for f in futures:
@@ -107,11 +122,15 @@ class TestCreateAndKill(object):
 
         # Make sure the worker starts.
         time.sleep(TEST_INTERVAL / 2)
+        assert p.inspect() == (1, 1, SIZE - 1,)
         p.kill(force=True, block=True)
 
         # The first task is finished.
         assert futures[0].is_finished()
         del(futures[0])
+
+        # There is no undone tasks.
+        assert p.inspect() == (1, 0, 0)
 
         # Check DeadPoolError is raised.
         for f in futures:
