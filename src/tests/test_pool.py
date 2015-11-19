@@ -293,21 +293,6 @@ class TestReceiveExceptionTaskRaised(object):
                 assert sample is e
 
 
-def test_worker_thread_will_be_used_specified_times():
-    """
-    Worker thread do taskes specified times, create a new worker
-    and kill itself.
-    """
-
-    def foo():
-        return threading.current_thread()
-
-    p = thread_utils.Pool(worker_size=1, loop_count=2)
-    futures = [p.send(foo) for i in range(3)]
-    assert futures[0].receive() == futures[1].receive()
-    assert futures[0].receive() != futures[2].receive()
-
-
 def test_receive_raises_TimeoutError_if_task_do_not_finish_before_timeout():
     """
     future.receive() raises TimeoutError if task won't finish before timeout.

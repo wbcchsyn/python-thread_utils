@@ -38,17 +38,15 @@ class Pool(object):
     method must be called to join workers except for used in with statement.
     """
 
-    __slots__ = ('__worker_size', '__loop_count', '__daemon', '__futures',
-                 '__lock', '__is_killed', '__queue_size', '__workings')
+    __slots__ = ('__worker_size', '__daemon', '__futures', '__lock',
+                 '__is_killed', '__queue_size', '__workings')
 
-    def __init__(self, worker_size=1, loop_count=sys.maxint, daemon=True):
+    def __init__(self, worker_size=1, daemon=True):
         """
         All arguments are optional.
 
         Argument `worker_size' specifies the number of the worker thread.
-        The object can do this number of tasks at the same time parallel. Each
-        worker will invoke callable `loop_count' times. After that, the worker
-        kill itself and a new worker is created.
+        The object can do this number of tasks at the same time parallel.
 
         If argument `daemon' is True, the worker thread will be daemonic, or
         not. Python program exits when only daemon threads are left.
@@ -64,15 +62,7 @@ class Pool(object):
             raise ValueError("The argument 2 'worker_size' is requested 0 or "
                              "larger than 0.")
 
-        if not isinstance(loop_count, int):
-            raise TypeError("The argument 3 'loop_count' is requested "
-                            "to be int.")
-        if loop_count < 1:
-            raise ValueError("The argument 3 'loop_count' is requested to be 1"
-                             " or larger than 1.")
-
         # Immutable variables
-        self.__loop_count = loop_count
         self.__daemon = operator.truth(daemon)
 
         # Lock
@@ -95,7 +85,7 @@ class Pool(object):
 
     def __run(self):
         try:
-            for i in xrange(self.__loop_count):
+            while True:
                 future = None
 
                 self.__lock.acquire()
@@ -118,8 +108,6 @@ class Pool(object):
                 self.__workings += 1
                 future._run()
                 self.__workings -= 1
-
-            self.__create_worker()
 
         finally:
             _gc._put(threading.current_thread())
