@@ -26,3 +26,7 @@ class TimeoutError(Error):
 
 class DeadPoolError(Error):
     pass
+
+
+class CancelError(Error):
+    pass

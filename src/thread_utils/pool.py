@@ -204,15 +204,7 @@ class Pool(object):
             self.__lock.notify_all()
 
             if force:
-                for f in self.__futures:
-                    f._set_result(
-                        error.DeadPoolError("The pool is killed before the"
-                                            " task is done."),
-                        True
-                    )
-
-                self.__futures.clear()
-                self.__queue_size = 0
+                self.__cancel()
 
             if block:
                 while self.__current_workers > 0:
@@ -230,6 +222,20 @@ class Pool(object):
         '''
 
         return (self.__worker_size, self.__workings, self.__queue_size,)
+
+    def cancel(self):
+        with self.__lock:
+            self.__cancel()
+
+    def __cancel(self):
+        while self.__futures:
+            f = self.__futures.pop()
+            f._set_result(
+                    error.CancelError("This task was canceled before done."),
+                    True
+                    )
+
+        self.__queue_size = 0
 
     def __del__(self):
         self.kill()
