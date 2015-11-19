@@ -24,14 +24,8 @@ __TERMINATED = Queue.Queue()
 
 
 def __gc():
-    try:
-        while True:
-            __TERMINATED.get().join()
-    except:
-        # Daemon thread seldom raises error at exit in some conditions in
-        # python 2.6.
-        pass
-
+    while True:
+        __TERMINATED.get().join()
 
 _put = __TERMINATED.put
 __GC = threading.Thread(target=__gc)
