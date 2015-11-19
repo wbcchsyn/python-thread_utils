@@ -39,7 +39,8 @@ class Pool(object):
     """
 
     __slots__ = ('__worker_size', '__daemon', '__futures', '__lock',
-                 '__is_killed', '__queue_size', '__workings')
+                 '__is_killed', '__queue_size', '__workings',
+                 '__current_workers')
 
     def __init__(self, worker_size=1, daemon=True):
         """
@@ -64,13 +65,14 @@ class Pool(object):
 
         # Immutable variables
         self.__daemon = operator.truth(daemon)
+        self.__worker_size = worker_size
 
         # Lock
         self.__lock = threading.Condition(threading.Lock())
 
         # Mutable variables
         self.__is_killed = False
-        self.__worker_size = worker_size
+        self.__current_workers = 0
         self.__futures = collections.deque()
         self.__queue_size = 0
         self.__workings = 0
@@ -82,6 +84,7 @@ class Pool(object):
         t = threading.Thread(target=self.__run)
         t.daemon = self.__daemon
         t.start()
+        self.__current_workers += 1
 
     def __run(self):
         try:
@@ -94,9 +97,6 @@ class Pool(object):
                         self.__lock.wait()
 
                     if self.__queue_size == 0 and self.__is_killed:
-                        self.__worker_size -= 1
-                        if self.__worker_size == 0:
-                            self.__lock.notify()
                         return
 
                     future = self.__futures.popleft()
@@ -110,6 +110,10 @@ class Pool(object):
                 self.__workings -= 1
 
         finally:
+            with self.__lock:
+                self.__current_workers -= 1
+                if self.__current_workers == 0:
+                    self.__lock.notify_all()
             _gc._put(threading.current_thread())
 
     def send(self, func, *args, **kwargs):
@@ -213,7 +217,7 @@ class Pool(object):
                 self.__queue_size = 0
 
             if block:
-                while self.__worker_size > 0:
+                while self.__current_workers > 0:
                     self.__lock.wait()
 
         finally:
