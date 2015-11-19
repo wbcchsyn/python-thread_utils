@@ -65,7 +65,6 @@ class TestCreateAndKill(object):
 
         # Check no timeout error occurres.
         [f.receive(timeout=TEST_INTERVAL * 10) for f in futures]
-        assert p.inspect() == (1, 0, 0,)
 
     def test_workers_stop_before_all_task_done_when_force_kill(self):
         """
@@ -105,7 +104,7 @@ class TestCreateAndKill(object):
         futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
         assert p.inspect()[2] > 0
         p.kill(block=True)
-        assert p.inspect() == (1, 0, 0,)
+        assert p.inspect() == (0, 0, 0,)
 
         # Check all tasks are finished.
         for f in futures:
@@ -129,7 +128,7 @@ class TestCreateAndKill(object):
         del(futures[0])
 
         # There is no undone tasks.
-        assert p.inspect() == (1, 0, 0)
+        assert p.inspect() == (0, 0, 0)
 
         # Check CancelError is raised.
         for f in futures:
@@ -175,7 +174,7 @@ class TestCreateAndKill(object):
         p.kill()
         assert p.inspect()[2] > 0
         p.kill(block=True)
-        assert p.inspect() == (1, 0, 0,)
+        assert p.inspect() == (0, 0, 0,)
 
     def test_second_kill_can_cancel_undone_tasks(self):
         '''

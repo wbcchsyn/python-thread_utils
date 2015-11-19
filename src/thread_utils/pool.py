@@ -113,8 +113,12 @@ class Pool(object):
         finally:
             with self.__lock:
                 self.__current_workers -= 1
-                if self.__current_workers == 0:
-                    self.__lock.notify_all()
+
+                if self.__is_killed:
+                    self.__worker_size = self.__current_workers
+                    if self.__current_workers == 0:
+                        self.__lock.notify_all()
+
             _gc._put(threading.current_thread())
 
     def send(self, func, *args, **kwargs):
