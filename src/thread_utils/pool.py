@@ -200,9 +200,6 @@ class Pool(object):
 
         self.__lock.acquire()
         try:
-            if self.__is_killed:
-                return
-
             self.__is_killed = True
             self.__lock.notify_all()
 
@@ -214,6 +211,7 @@ class Pool(object):
                         True
                     )
 
+                self.__futures.clear()
                 self.__queue_size = 0
 
             if block:

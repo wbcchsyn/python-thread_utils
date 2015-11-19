@@ -162,6 +162,36 @@ class TestCreateAndKill(object):
         p.kill()
         assert p.inspect() == (1, 1, SIZE - 2)
 
+    def test_second_kill_can_block_till_task_done(self):
+        '''
+        Pool.kill(block=True) always blocks till all tasks are done.
+        '''
+
+        p = thread_utils.Pool()
+        for i in range(SIZE):
+            p.send(time.sleep, TEST_INTERVAL)
+
+        # kill(block=True) blocks till all task is done even 2nd time.
+        p.kill()
+        assert p.inspect()[2] > 0
+        p.kill(block=True)
+        assert p.inspect() == (1, 0, 0,)
+
+    def test_second_kill_can_cancel_undone_tasks(self):
+        '''
+        Pool.kill(force=True) always cancel all undone tasks.
+        '''
+
+        p = thread_utils.Pool()
+        for i in range(SIZE):
+            p.send(time.sleep, TEST_INTERVAL)
+
+        # kill(block=True) blocks till all task is done even 2nd time.
+        p.kill()
+        assert p.inspect()[2] > 0
+        p.kill(force=True)
+        assert p.inspect()[2] == 0
+
 
 class TestReceiveWhatTaskReturned(object):
     """
