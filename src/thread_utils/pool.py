@@ -39,13 +39,12 @@ class Pool(object):
 
     __slots__ = (
         '__worker_size',  # How many workers should be.
+        '__workers',  # dict of workers. { thread_id: doing_task_or_not }
         '__daemon',  # Workers are daemon thread or not.
         '__futures',  # Futures of undone tasks and stop signals.
         '__lock',  # exclusive lock (Condition).
         '__is_killed',  # whether pool is killed or not.
-        '__queue_size',  # How many undone tasks.
-        '__workings',  # Tasks being done.
-        '__current_workers'  # How many workers are now.
+        '__stop_signals',  # How many stop signals are queued.
     )
 
     def __init__(self, worker_size=1, daemon=True):
@@ -78,10 +77,9 @@ class Pool(object):
         # Mutable variables
         self.__is_killed = False
         self.__worker_size = worker_size
-        self.__current_workers = 0
         self.__futures = collections.deque()
-        self.__queue_size = 0
-        self.__workings = 0
+        self.__stop_signals = 0
+        self.__workers = {}
 
         for i in xrange(worker_size):
             self.__create_worker()
@@ -90,43 +88,50 @@ class Pool(object):
         t = threading.Thread(target=self.__run)
         t.daemon = self.__daemon
         t.start()
-        self.__current_workers += 1
 
     def __run(self):
-        try:
-            while True:
-                try:
-                    self.__lock.acquire()
-                    while not self.__futures:
-                        self.__lock.wait()
 
-                    future = self.__futures.popleft()
-                    if future is None:
-                        return
+        # Add own thread object to self.__workers
+        my_id = id(threading.current_thread())
+        with self.__lock:
+            self.__workers[my_id] = False
 
-                    self.__queue_size -= 1
-                    self.__workings += 1
-
-                    # Release lock only when doing task.
-                    self.__lock.release()
-                    future._run()
-                    self.__lock.acquire()
-
-                    self.__workings -= 1
-
-                finally:
-                    self.__lock.release()
-
-        finally:
+        # Helper Function
+        def worker_exit_at():
             with self.__lock:
-                self.__current_workers -= 1
+                # worker consumes stop signal when worker exits.
+                self.__stop_signals -= 1
 
+                # Delete own thread object.
+                del(self.__workers[my_id])
+
+                # Decrease worker_size when pool is being killed.
                 if self.__is_killed:
-                    self.__worker_size = self.__current_workers
-                    if self.__current_workers == 0:
+                    self.__worker_size = len(self.__workers)
+                    # Wake up all kill methods when the last worker is killed.
+                    if self.__worker_size == 0:
                         self.__lock.notify_all()
 
             _gc._put(threading.current_thread())
+
+        # Method routine start
+        while True:
+            try:
+                # dequeu.popleft() is thread safe.
+                future = self.__futures.popleft()
+                if future is None:
+                    worker_exit_at()
+                    return
+
+                self.__workers[my_id] = True
+                future._run()
+                self.__workers[my_id] = False
+
+            except IndexError:
+                # If self.__futures is empty, wait until task comes.
+                with self.__lock:
+                    while not self.__futures:
+                        self.__lock.wait()
 
     def send(self, func, *args, **kwargs):
         """
@@ -175,10 +180,12 @@ class Pool(object):
             if self.__is_killed:
                 raise error.DeadPoolError("Pool.send is called after killed.")
 
+            # Wake up workers waiting task.
+            if not self.__futures:
+                self.__lock.notify()
+
             future = _future.PoolFuture(func, *args, **kwargs)
             self.__futures.append(future)
-            self.__queue_size += 1
-            self.__lock.notify()
             return future
 
     def kill(self, force=False, block=False):
@@ -215,10 +222,11 @@ class Pool(object):
 
             for i in xrange(self.__worker_size):
                 self.__futures.append(None)
+            self.__stop_signals += self.__worker_size
             self.__lock.notify_all()
 
             if block:
-                while self.__current_workers > 0:
+                while self.__worker_size > 0:
                     self.__lock.wait()
 
     def inspect(self):
@@ -229,7 +237,9 @@ class Pool(object):
         (worker size, tasks currently being done, queued undone tasks)
         '''
 
-        return (self.__worker_size, self.__workings, self.__queue_size,)
+        tasks_being_done = sum(self.__workers.itervalues())
+        queued_tasks = len(self.__futures) - self.__stop_signals
+        return (self.__worker_size, tasks_being_done, queued_tasks,)
 
     def cancel(self):
         with self.__lock:
@@ -248,7 +258,6 @@ class Pool(object):
                     error.CancelError("This task was canceled before done."),
                     True
                 )
-                self.__queue_size -= 1
 
     def set_worker_size(self, worker_size):
         with self.__lock:
@@ -262,6 +271,7 @@ class Pool(object):
 
             while worker_size < self.__worker_size:
                 self.__futures.appendleft(None)
+                self.__stop_signals += 1
                 self.__worker_size -= 1
 
             self.__lock.notify_all()
