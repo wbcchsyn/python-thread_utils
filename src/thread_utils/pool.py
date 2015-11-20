@@ -37,9 +37,16 @@ class Pool(object):
     method must be called to join workers except for used in with statement.
     """
 
-    __slots__ = ('__worker_size', '__daemon', '__futures', '__lock',
-                 '__is_killed', '__queue_size', '__workings',
-                 '__current_workers')
+    __slots__ = (
+        '__worker_size',  # How many workers should be.
+        '__daemon',  # Workers are daemon thread or not.
+        '__futures',  # Futures of undone tasks and stop signals.
+        '__lock',  # exclusive lock (Condition).
+        '__is_killed',  # whether pool is killed or not.
+        '__queue_size',  # How many undone tasks.
+        '__workings',  # Tasks being done.
+        '__current_workers'  # How many workers are now.
+    )
 
     def __init__(self, worker_size=1, daemon=True):
         """
