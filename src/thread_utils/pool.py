@@ -19,6 +19,7 @@ limitations under the License.
 import collections
 import threading
 import operator
+import sys
 
 import _future
 import _gc
@@ -41,18 +42,22 @@ class Pool(object):
         '__worker_size',  # How many workers should be.
         '__workers',  # dict of workers. { thread_id: doing_task_or_not }
         '__daemon',  # Workers are daemon thread or not.
+        '__loop_count',  # How many tasks each worker does before regenerate.
         '__futures',  # Futures of undone tasks and stop signals.
         '__lock',  # exclusive lock (Condition).
         '__is_killed',  # whether pool is killed or not.
         '__stop_signals',  # How many stop signals are queued.
     )
 
-    def __init__(self, worker_size=1, daemon=True):
+    def __init__(self, worker_size=1, loop_count=sys.maxint, daemon=True):
         """
         All arguments are optional.
 
         Argument `worker_size' specifies the number of the worker thread.
-        The object can do this number of tasks at the same time parallel.
+        The object can do this number of tasks at the same time parallel. Each
+        worker will invoke callable `loop_count' times. After that, the worker
+        kill itself and a new worker is created.
+
 
         If argument `daemon' is True, the worker thread will be daemonic, or
         not. Python program exits when only daemon threads are left.
@@ -68,8 +73,16 @@ class Pool(object):
             raise ValueError("The argument 2 'worker_size' is requested 0 or "
                              "larger than 0.")
 
+        if not isinstance(loop_count, int):
+            raise TypeError("The argument 3 'loop_count' is requested "
+                            "to be int.")
+        if loop_count < 1:
+            raise ValueError("The argument 3 'loop_count' is requested to be 1"
+                             " or larger than 1.")
+
         # Immutable variables
         self.__daemon = operator.truth(daemon)
+        self.__loop_count = loop_count
 
         # Lock
         self.__lock = threading.Condition(threading.Lock())
@@ -99,9 +112,6 @@ class Pool(object):
         # Helper Function
         def worker_exit_at():
             with self.__lock:
-                # worker consumes stop signal when worker exits.
-                self.__stop_signals -= 1
-
                 # Delete own thread object.
                 del(self.__workers[my_id])
 
@@ -115,23 +125,35 @@ class Pool(object):
             _gc._put(threading.current_thread())
 
         # Method routine start
-        while True:
-            try:
-                # dequeu.popleft() is thread safe.
-                future = self.__futures.popleft()
-                if future is None:
-                    worker_exit_at()
-                    return
+        try:
+            loop_count = 0
+            while loop_count < self.__loop_count:
+                try:
+                    # dequeu.popleft() is thread safe.
+                    future = self.__futures.popleft()
 
-                self.__workers[my_id] = True
-                future._run()
-                self.__workers[my_id] = False
+                    if future is None:
+                        # kill itself if the task is None (stop signal).
+                        with self.__lock:
+                            self.__stop_signals -= 1
+                        return
 
-            except IndexError:
-                # If self.__futures is empty, wait until task comes.
-                with self.__lock:
-                    while not self.__futures:
-                        self.__lock.wait()
+                    loop_count += 1
+                    self.__workers[my_id] = True
+                    future._run()
+                    self.__workers[my_id] = False
+
+                except IndexError:
+                    # If self.__futures is empty, wait until task comes.
+                    with self.__lock:
+                        while not self.__futures:
+                            self.__lock.wait()
+
+            # Recreate a worker before suiside when loop ends.
+            self.__create_worker()
+
+        finally:
+            worker_exit_at()
 
     def send(self, func, *args, **kwargs):
         """
