@@ -224,8 +224,8 @@ class Pool(object):
         If the argument block is True, block until the all workers done the
         tasks. Otherwise, it returns immediately. The default value is False.
 
-        If `send' is called after this methos is called, it raises
-        DeadPoolError.
+        If `send' or `set_worker_size' is called after this methos is called,
+        it raises DeadPoolError.
 
         If this class is used in with statement, this method is called when the
         block exited. Otherwise, this method must be called after finished
@@ -240,7 +240,7 @@ class Pool(object):
             self.__is_killed = True
 
             if force:
-                self.__cancel()
+                self.cancel()
 
             for i in xrange(self.__worker_size):
                 self.__futures.append(None)
@@ -263,23 +263,33 @@ class Pool(object):
         queued_tasks = len(self.__futures) - self.__stop_signals
         return (self.__worker_size, tasks_being_done, queued_tasks,)
 
+
     def cancel(self):
-        with self.__lock:
-            self.__cancel()
+        '''
+        Cancel all tasks in the Queue.
 
-    def __cancel(self):
-        count = len(self.__futures)
-        for i in xrange(count):
+        Cancel tasks which are not started.
+        '''
 
-            f = self.__futures.popleft()
-            if f is None:
-                self.__futures.append(None)
+        # Store how many stop signals to fetch to append again.
+        stop_signals = 0
+        try:
+            # Pop all futures.
+            while True:
+                # dequeue.pop() is thread safe.
+                f = self.__futures.pop()
 
-            else:
-                f._set_result(
-                    error.CancelError("This task was canceled before done."),
-                    True
-                )
+                if f is None:
+                    stop_signals += 1
+
+                else:
+                    f._set_result(error.CancelError("This task was canceled "
+                                                    "before done."),
+                                                    True)
+        except IndexError:
+            # Append as many stop signals as poped.
+            for i in xrange(stop_signals):
+                self.__futures.appendleft(None)
 
     def set_worker_size(self, worker_size):
         with self.__lock:
