@@ -200,7 +200,7 @@ class Pool(object):
             if self.__is_killed:
                 raise error.DeadPoolError("Pool.send is called after killed.")
 
-            # Wake up workers waiting task.
+            # Wake up workers waiting for a task.
             self.__lock.notify()
 
             future = _future.PoolFuture(func, *args, **kwargs)
@@ -242,11 +242,12 @@ class Pool(object):
             self.__is_killed = True
 
             if force:
-                self.cancel()
+                self.__cancel()
 
             for i in xrange(self.__worker_size):
                 self.__futures.append(None)
             self.__stop_signals += self.__worker_size
+
             # Wake up workers waitin task or stop signal.
             self.__lock.notify_all()
 
@@ -283,6 +284,12 @@ class Pool(object):
         If a future is related to canceled task and the receive method is
         called, it will raise CancelError.
         '''
+
+        with self.__lock:
+            self.__cancel()
+            self.__lock.notify_all()
+
+    def __cancel(self):
 
         # Store how many stop signals to fetch to append again.
         stop_signals = 0
