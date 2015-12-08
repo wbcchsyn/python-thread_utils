@@ -314,6 +314,14 @@ class Pool(object):
         This method raises DeadPoolError if called after kill method is called.
         '''
 
+        # Argument Check
+        if not isinstance(worker_size, int):
+            raise TypeError("The argument 2 'worker_size' is requested "
+                            "to be int.")
+        if worker_size < 0:
+            raise ValueError("The argument 2 'worker_size' is requested 0 or "
+                             "larger than 0.")
+
         with self.__lock:
             if self.__is_killed:
                 raise error.DeadPoolError("Pool.set_worker_size is called "
