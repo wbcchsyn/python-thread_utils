@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 '''
-Copyright 2014 Yoshida Shin
+Copyright 2014, 2015 Yoshida Shin
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,4 +25,8 @@ class TimeoutError(Error):
 
 
 class DeadPoolError(Error):
+    pass
+
+
+class CancelError(Error):
     pass

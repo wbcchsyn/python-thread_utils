@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 '''
-Copyright 2014 Yoshida Shin
+Copyright 2014, 2015 Yoshida Shin
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -111,7 +111,7 @@ class AsyncFuture(Future):
         else:
             return self.__result
 
-
+# pylint: disable=E1101
 Future.register(AsyncFuture)
 
 
@@ -183,5 +183,5 @@ class PoolFuture(Future):
         else:
             return self.__result
 
-
+# pylint: disable=E1101
 Future.register(PoolFuture)

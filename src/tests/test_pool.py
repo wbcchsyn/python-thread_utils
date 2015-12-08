@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 '''
-Copyright 2014 Yoshida Shin
+Copyright 2014, 2015 Yoshida Shin
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,10 +46,10 @@ class TestCreateAndKill(object):
         initial_count = threading.active_count()
         p = thread_utils.Pool(SIZE)
         assert threading.active_count() == initial_count + SIZE
+        assert p.inspect() == (SIZE, 0, 0,)
 
-        p.kill()
-
-        # Wait for all threads are killed.
+        # Make sure all workers are joined
+        p.kill(block=True)
         time.sleep(TEST_INTERVAL)
         assert threading.active_count() == initial_count
 
@@ -78,9 +78,20 @@ class TestCreateAndKill(object):
         # skip the first future check because the result is not stable.
         del(futures[0])
 
-        # Check DeadPoolError is raised.
+        # Check CancelError is raised.
         for f in futures:
-            with pytest.raises(thread_utils.DeadPoolError):
+            with pytest.raises(thread_utils.CancelError):
+                f.receive()
+
+        # If worker_size is 0, all features raise CancelError
+        p = thread_utils.Pool(worker_size=0)
+        futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
+        assert p.inspect() == (0, 0, SIZE,)
+        p.kill(force=True)
+
+        # Check CancelError is raised.
+        for f in futures:
+            with pytest.raises(thread_utils.CancelError):
                 f.receive()
 
     def test_kill_blocks_until_workers_died(self):
@@ -91,7 +102,9 @@ class TestCreateAndKill(object):
 
         p = thread_utils.Pool()
         futures = [p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
+        assert p.inspect()[2] > 0
         p.kill(block=True)
+        assert p.inspect() == (0, 0, 0,)
 
         # Check all tasks are finished.
         for f in futures:
@@ -107,16 +120,142 @@ class TestCreateAndKill(object):
 
         # Make sure the worker starts.
         time.sleep(TEST_INTERVAL / 2)
+        assert p.inspect() == (1, 1, SIZE - 1,)
         p.kill(force=True, block=True)
 
         # The first task is finished.
         assert futures[0].is_finished()
         del(futures[0])
 
-        # Check DeadPoolError is raised.
+        # There is no undone tasks.
+        assert p.inspect() == (0, 0, 0)
+
+        # Check CancelError is raised.
         for f in futures:
-            with pytest.raises(thread_utils.DeadPoolError):
+            with pytest.raises(thread_utils.CancelError):
                 f.receive()
+
+    def test_inspect(self):
+        '''
+        Test inspect returns the right answer.
+        '''
+
+        p = thread_utils.Pool(worker_size=0)
+
+        for i in range(SIZE):
+            assert p.inspect() == (0, 0, i)
+            p.send(lambda: None)
+
+        p.kill(force=True)
+        p.inspect() == (0, 0, 0)
+
+        p = thread_utils.Pool(worker_size=1)
+        for i in range(SIZE):
+            p.send(time.sleep, TEST_INTERVAL)
+
+        time.sleep(TEST_INTERVAL / 2)
+        assert p.inspect() == (1, 1, SIZE - 1)
+        time.sleep(TEST_INTERVAL)
+        assert p.inspect() == (1, 1, SIZE - 2)
+
+        p.kill()
+        assert p.inspect() == (1, 1, SIZE - 2)
+
+    def test_second_kill_can_block_till_task_done(self):
+        '''
+        Pool.kill(block=True) always blocks till all tasks are done.
+        '''
+
+        p = thread_utils.Pool()
+        for i in range(SIZE):
+            p.send(time.sleep, TEST_INTERVAL)
+
+        # kill(block=True) blocks till all task is done even 2nd time.
+        p.kill()
+        assert p.inspect()[2] > 0
+        p.kill(block=True)
+        assert p.inspect() == (0, 0, 0,)
+
+    def test_second_kill_can_cancel_undone_tasks(self):
+        '''
+        Pool.kill(force=True) always cancel all undone tasks.
+        '''
+
+        p = thread_utils.Pool()
+        for i in range(SIZE):
+            p.send(time.sleep, TEST_INTERVAL)
+
+        # kill(block=True) blocks till all task is done even 2nd time.
+        p.kill()
+        assert p.inspect()[2] > 0
+        p.kill(force=True)
+        assert p.inspect()[2] == 0
+
+    def test_cancel(self):
+        '''
+        Pool.cancel() cancels all undone tasks.
+        '''
+
+        p = thread_utils.Pool(worker_size=0)
+        for i in range(SIZE):
+            p.send(lambda: None)
+        assert p.inspect() == (0, 0, SIZE,)
+        p.cancel()
+        assert p.inspect() == (0, 0, 0,)
+
+        # cancel method works many times.
+        for i in range(SIZE):
+            p.send(lambda: None)
+        assert p.inspect() == (0, 0, SIZE,)
+        p.cancel()
+        assert p.inspect() == (0, 0, 0,)
+
+        # Cancel method works even worker_size is not 0.
+        p = thread_utils.Pool()
+        for i in range(SIZE):
+            p.send(time.sleep, TEST_INTERVAL)
+        p.cancel()
+        assert p.inspect()[2] == 0
+
+    def test_set_worker_size(self):
+        '''
+        Worker size can be changed after created.
+        '''
+
+        p = thread_utils.Pool(worker_size=0)
+        for i in range(SIZE):
+            p.send(lambda: None)
+        assert p.inspect() == (0, 0, SIZE)
+
+        # The worker size can be changed.
+        p.set_worker_size(1)
+        assert p.inspect()[0] == 1
+
+        # The worker size can be changed many times.
+        p.set_worker_size(2)
+        assert p.inspect()[0] == 2
+
+        # Tasks are finished now that worker_size > 0
+        p.kill(block=True)
+
+        p = thread_utils.Pool(worker_size=0)
+        assert p.inspect() == (0, 0, 0)
+        p.set_worker_size(3)
+        assert p.inspect() == (3, 0, 0)
+
+        # worker_size can be reduced
+        p.set_worker_size(0)
+        assert p.inspect() == (0, 0, 0)
+
+        for i in range(SIZE):
+            p.send(lambda: None)
+        p.inspect() == (0, 0, SIZE)
+
+        # undone task is not reduced because no worker is.
+        time.sleep(TEST_INTERVAL)
+        p.inspect() == (0, 0, SIZE)
+
+        p.kill(force=True)
 
 
 class TestReceiveWhatTaskReturned(object):
@@ -266,20 +405,42 @@ class TestReceiveExceptionTaskRaised(object):
             except Exception as e:
                 assert sample is e
 
+    def test_receive_exception_task_canceled(self):
+        '''
+        future.receive() raises CancelError when it is canceled before done.
+        '''
 
-def test_worker_thread_will_be_used_specified_times():
-    """
-    Worker thread do taskes specified times, create a new worker
-    and kill itself.
-    """
+        futures = [self.p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
 
-    def foo():
-        return threading.current_thread()
+        # Make sure the first task starts
+        time.sleep(TEST_INTERVAL)
+        self.p.cancel()
 
-    p = thread_utils.Pool(worker_size=1, loop_count=2)
-    futures = [p.send(foo) for i in range(3)]
-    assert futures[0].receive() == futures[1].receive()
-    assert futures[0].receive() != futures[2].receive()
+        # The first task does not raise nothing.
+        futures[0].receive()
+        # The last tasks will raise CancelError.
+        with pytest.raises(thread_utils.CancelError):
+            futures[-1].receive()
+
+        # Make sure all tasks are canceled or finished.
+        for f in futures:
+            try:
+                f.receive()
+            except thread_utils.CancelError:
+                pass
+
+        # Pool.send works well after canceled.
+        futures = [self.p.send(time.sleep, TEST_INTERVAL) for i in range(SIZE)]
+
+        # Make sure the first task starts
+        time.sleep(TEST_INTERVAL)
+        self.p.cancel()
+
+        # The first task does not raise nothing.
+        futures[0].receive()
+        # The last tasks will raise CancelError.
+        with pytest.raises(thread_utils.CancelError):
+            futures[-1].receive()
 
 
 def test_receive_raises_TimeoutError_if_task_do_not_finish_before_timeout():

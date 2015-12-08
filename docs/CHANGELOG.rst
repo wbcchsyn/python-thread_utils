@@ -2,6 +2,15 @@
 CHANGELOG
 =========
 
+1.0.0 (2015/12/08)
+------------------
+
+* Change the behavior when Pool.kill method called twice or more than twice.
+* Add Pool.inspect and Pool.cancel method.
+* Enable to change worker size of Pool instance after created.
+* Performance tuning.
+* Stop to support python2.6, 3.1 and 3.2.
+
 0.1.3 (2015/03/15)
 ------------------
 

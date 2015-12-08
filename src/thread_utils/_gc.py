@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 '''
-Copyright 2014 Yoshida Shin
+Copyright 2014, 2015 Yoshida Shin
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,14 +24,8 @@ __TERMINATED = Queue.Queue()
 
 
 def __gc():
-    try:
-        while True:
-            __TERMINATED.get().join()
-    except:
-        # Daemon thread seldom raises error at exit in some conditions in
-        # python 2.6.
-        pass
-
+    while True:
+        __TERMINATED.get().join()
 
 _put = __TERMINATED.put
 __GC = threading.Thread(target=__gc)
