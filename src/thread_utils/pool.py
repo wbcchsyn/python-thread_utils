@@ -201,8 +201,7 @@ class Pool(object):
                 raise error.DeadPoolError("Pool.send is called after killed.")
 
             # Wake up workers waiting task.
-            if not self.__futures:
-                self.__lock.notify()
+            self.__lock.notify()
 
             future = _future.PoolFuture(func, *args, **kwargs)
             self.__futures.append(future)
