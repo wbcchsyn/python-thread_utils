@@ -111,7 +111,7 @@ class AsyncFuture(Future):
         else:
             return self.__result
 
-
+# pylint: disable=E1101
 Future.register(AsyncFuture)
 
 
@@ -183,5 +183,5 @@ class PoolFuture(Future):
         else:
             return self.__result
 
-
+# pylint: disable=E1101
 Future.register(PoolFuture)
