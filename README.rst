@@ -298,6 +298,12 @@ class thread_utils.Pool(worker_size=1, loop_count=sys.maxint, daemon=True)
 
     Change worker size.
 
+    This method set the worker size and return soon. The workers will
+    created soon when increasing,howeve, It could take some time when
+    decreasing because workers can't stop while doing a task.
+
+    This method raises DeadPoolError if called after kill method is called.
+
 Development
 ===========
 
