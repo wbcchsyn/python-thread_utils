@@ -39,7 +39,7 @@ requires = []
 
 setup(
     name='thread_utils',
-    version="1.0.0",
+    version="1.0.1",
     description='Wrapper of threading module providing Actor interface.',
     long_description=long_description,
     url="https://github.com/wbcchsyn/python-thread_utils",
