@@ -1,7 +1,7 @@
 #-*- coding: utf-8 -*-
 
 '''
-Copyright 2013 Yoshida Shin
+Copyright 2014, 2015 Yoshida Shin
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,11 +26,8 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 2.6",
     "Programming Language :: Python :: 2.7",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.1",
-    "Programming Language :: Python :: 3.2",
     "Programming Language :: Python :: 3.3",
     "Programming Language :: Python :: 3.4",
     "Topic :: Software Development",
@@ -42,7 +39,7 @@ requires = []
 
 setup(
     name='thread_utils',
-    version="0.1.3",
+    version="1.0.0",
     description='Wrapper of threading module providing Actor interface.',
     long_description=long_description,
     url="https://github.com/wbcchsyn/python-thread_utils",
