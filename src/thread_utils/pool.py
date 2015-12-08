@@ -36,6 +36,8 @@ class Pool(object):
 
     The workers are reused for many times, so after using this object, kill
     method must be called to join workers except for used in with statement.
+
+    All public methods are thread safe.
     """
 
     __slots__ = (
@@ -58,11 +60,8 @@ class Pool(object):
         worker will invoke callable `loop_count' times. After that, the worker
         kill itself and a new worker is created.
 
-
-        If argument `daemon' is True, the worker thread will be daemonic, or
+        If argument `daemon' is True, the worker threads will be daemonic, or
         not. Python program exits when only daemon threads are left.
-
-        This constructor is thread safe.
         """
 
         # Argument Check
@@ -161,10 +160,11 @@ class Pool(object):
         object.
 
         Argument `func' is a callable object invoked by workers, and *args
-        and **kwargs are passed to it.
+        and **kwargs are arguments passed to it.
 
         The returned Future object monitors the progress of invoked callable
-        and stores the result.
+        and stores the result. The result can be accessed through the Future
+        instance.
 
           import thread_utils
           import time
@@ -189,8 +189,6 @@ class Pool(object):
         See help(thread_utils.Future) for more detail abaout the return value.
 
         This method raises DeadPoolError if called after kill method is called.
-
-        This method is thread safe.
         """
 
         # Argument Check
@@ -214,26 +212,31 @@ class Pool(object):
         """
         Set internal flag and make workers stop.
 
-        If the argument force is True, the workers will stop after their
-        current task is finished. In this case, some futures could be left
-        undone, and they will raise DeadPoolError when their receive method
-        is called. On the other hand, if the argument force is False, the
-        workers will stop after all queued tasks are finished. The default is
-        value False.
+        If the argument force is True, all queued tasks are canceled; the
+        workers will stop after their current task is finished. In this case,
+        tasks not started before this method is called will be left undone.
+        If a Future instance is related to canceled task and the receive
+        method is called, it will raise CancelError. The default value is
+        False.
 
         If the argument block is True, block until the all workers done the
         tasks. Otherwise, it returns immediately. The default value is False.
+        If this method is called in a task with argument block is True, dead
+        lock will occur.
 
         If `send' or `set_worker_size' is called after this methos is called,
         it raises DeadPoolError.
 
-        If this class is used in with statement, this method is called when the
-        block exited. Otherwise, this method must be called after finished
-        using the object, or the worker threads are left till the program ends.
+        This method can be called many times.
+        If argument force is True, cancel undone tasks then. If argument block
+        is True, it blocks until all workers done tasks.
+
+        If this class is used in with statement, this method is called with
+        default arguments when the block exited. Otherwise, this method must
+        be called after finished using the object, or the worker threads are
+        left till the program ends.
         (Or, if the constructor is called with optional argument daemon=False,
         dead lock occurres and program will never ends.)
-
-        This method is thread safe and can be callable many times.
         """
 
         with self.__lock:
@@ -245,6 +248,7 @@ class Pool(object):
             for i in xrange(self.__worker_size):
                 self.__futures.append(None)
             self.__stop_signals += self.__worker_size
+            # Wake up workers waitin task or stop signal.
             self.__lock.notify_all()
 
             if block:
@@ -255,20 +259,30 @@ class Pool(object):
         '''
         Return tuple which indicate the instance status.
 
-        The return value is a tuple of 3 ints. the format is as follows.
+        The return value is a tuple of 3 ints. The format is as follows.
         (worker size, tasks currently being done, queued undone tasks)
+
+        The values are only indication.
+        Even the instance itself doesn't know the accurate values.
         '''
 
         tasks_being_done = sum(self.__workers.itervalues())
         queued_tasks = len(self.__futures) - self.__stop_signals
         return (self.__worker_size, tasks_being_done, queued_tasks,)
 
-
     def cancel(self):
         '''
         Cancel all tasks in the Queue.
 
-        Cancel tasks which are not started.
+        Cancel all tasks before started. This method can be called whenever,
+        even after the pool is killed.
+
+        Tasks are dequeued when it is started to do. Tasks being done are left
+        unchanged. So this method can be called from task. (Of course, it can
+        be called from outside of the task, too.)
+
+        If a future is related to canceled task and the receive method is
+        called, it will raise CancelError.
         '''
 
         # Store how many stop signals to fetch to append again.
@@ -284,14 +298,23 @@ class Pool(object):
 
                 else:
                     f._set_result(error.CancelError("This task was canceled "
-                                                    "before done."),
-                                                    True)
+                                                    "before done."), True)
         except IndexError:
             # Append as many stop signals as poped.
             for i in xrange(stop_signals):
                 self.__futures.appendleft(None)
 
     def set_worker_size(self, worker_size):
+        '''
+        Change worker size.
+
+        This method set the worker size and return soon. The workers will
+        created soon when increasing,howeve, It could take some time when
+        decreasing because workers can't stop while doing a task.
+
+        This method raises DeadPoolError if called after kill method is called.
+        '''
+
         with self.__lock:
             if self.__is_killed:
                 raise error.DeadPoolError("Pool.set_worker_size is called "
@@ -306,6 +329,7 @@ class Pool(object):
                 self.__stop_signals += 1
                 self.__worker_size -= 1
 
+            # Wake up workers waiting for task or stop signal.
             self.__lock.notify_all()
 
     def __del__(self):
