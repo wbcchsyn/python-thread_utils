@@ -6,8 +6,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import thread_utils
 
 
-SIZE = 10
-COUNT = 65535
+SIZE = 64
+COUNT = 1024
 
 
 def nothing():
@@ -15,9 +15,14 @@ def nothing():
 
 
 if __name__ == '__main__':
-    pool = thread_utils.Pool(worker_size=SIZE, daemon=True)
-    futures = [pool.send(nothing) for i in xrange(COUNT)]
+    futures = []
+    with thread_utils.Pool(worker_size=SIZE) as pool:
 
-    pool.kill(block=True)
+        for i in xrange(COUNT):
+            f = pool.send(nothing)
+            for i in xrange(SIZE):
+                futures.append(pool.send(nothing))
+            f.receive()
+
     for f in futures:
         f.receive()
